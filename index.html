@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WTI原油价格走势叠加多空入场、退出与做空信号交互看板 (2014–2026)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="min-h-screen bg-[#0b0f17] text-slate-100 selection:bg-sky-500 selection:text-white">
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900/95 border border-sky-500/50 text-sky-100 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md">
+    <span class="inline-block w-2 h-2 rounded-full bg-sky-400"></span>
+    <span id="toastText">操作成功</span>
+  </div>
+
+  <!-- Top Header -->
+  <header class="border-b border-slate-800/80 bg-slate-950/90 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30">Databento GLBX.MDP3 • CL &amp; LO</span>
+          <span class="px-2.5 py-0.5 text-[11px] font-mono-num rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">2014.01 – 2026.10 (3,966 交易日)</span>
+          <span class="px-2.5 py-0.5 text-[11px] rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/30">PASS_LIVE_READY 实证复盘</span>
+        </div>
+        <h1 class="text-lg sm:text-xl md:text-2xl font-bold text-white mt-1 tracking-tight">
+          WTI原油价格走势叠加多空入场、退出与做空信号交互看板
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">
+          《WTI原油期货多头退出机制、期权Greeks信号检验与系统化做空策略深度研究报告》核心交互复盘终端
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnToggleMA5" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border bg-purple-500/25 border-purple-400 text-purple-200 transition hover:bg-purple-500/35">
+          5日均线 (5MA门控)
+        </button>
+        <button id="btnTogglePath" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border bg-emerald-500/25 border-emerald-400 text-emerald-200 transition hover:bg-emerald-500/35">
+          持仓路径连线
+        </button>
+        <button id="btnResetFilters" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:bg-slate-700">
+          重置全周期视图
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- Filter Controls Card -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3.5">
+      <!-- Time Window Selector -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 w-28 shrink-0">时间窗口选择：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-period-btn="ALL" class="filter-btn-active px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            全周期 (2014–2026)
+          </button>
+          <button type="button" data-period-btn="2014-2019" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2014–2019 早期样本
+          </button>
+          <button type="button" data-period-btn="2020-2022" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2020–2022 疫情与通胀周期
+          </button>
+          <button type="button" data-period-btn="2023-2024" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2023–2024 震荡期
+          </button>
+          <button type="button" data-period-btn="2025-2026" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2025–2026 样本外大考
+          </button>
+        </div>
+      </div>
+
+      <!-- Signal Layer Selector -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-slate-800/80">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 w-28 shrink-0">信号图层选择：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-layer-btn="ALL" class="layer-btn-active-ALL px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500 flex items-center gap-1.5">
+            <span>全部信号</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">71笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q3" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-rose-300 transition hover:border-rose-500/50 flex items-center gap-1.5">
+            <span>▼ Q3 顶部右侧做空 / 止盈</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">18笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q1" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-emerald-300 transition hover:border-emerald-500/50 flex items-center gap-1.5">
+            <span>▲ Q1 恐慌抄底 + 三重障碍退出</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">24笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q2" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-sky-300 transition hover:border-sky-500/50 flex items-center gap-1.5">
+            <span>◆ Q2 突破续涨 + 止盈退出</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">19笔</span>
+          </button>
+          <button type="button" data-layer-btn="WHIPSAW" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-amber-300 transition hover:border-amber-500/50 flex items-center gap-1.5">
+            <span>✖ IV60 窄止损3%错杀诊断</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">10笔</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dynamic 4 KPI Summary Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+        <div class="text-xs text-slate-400 font-medium">当前可见信号总数</div>
+        <div id="kpiTotalCount" class="text-xl sm:text-2xl font-bold font-mono-num text-white mt-1">71 笔</div>
+        <div id="kpiTotalSub" class="text-[11px] text-slate-400 mt-1">Q3做空 18 | Q1抄底 24 | Q2突破 19 | 窄止损 10</div>
+      </div>
+      <div class="bg-slate-900/90 border border-rose-900/40 rounded-2xl p-4">
+        <div class="text-xs text-rose-300 font-medium">▼ Q3 顶部右侧门控做空损益</div>
+        <div id="kpiQ3Pnl" class="text-xl sm:text-2xl font-bold font-mono-num text-rose-400 mt-1">+$68,577</div>
+        <div id="kpiQ3Meta" class="text-[11px] text-slate-400 mt-1">18笔 | 胜率 72% (右侧跌破5MA门控)</div>
+      </div>
+      <div class="bg-slate-900/90 border border-emerald-900/40 rounded-2xl p-4">
+        <div class="text-xs text-emerald-300 font-medium">▲/◆ Q1+Q2 多头退出总损益</div>
+        <div id="kpiLongPnl" class="text-xl sm:text-2xl font-bold font-mono-num text-emerald-400 mt-1">+$192,740</div>
+        <div id="kpiLongMeta" class="text-[11px] text-slate-400 mt-1">43笔 | 胜率 93% (2ATR自适应+重置)</div>
+      </div>
+      <div class="bg-slate-900/90 border border-amber-900/40 rounded-2xl p-4">
+        <div class="text-xs text-amber-300 font-medium">✖ 3%窄止损错杀诊断特征</div>
+        <div id="kpiWsTitle" class="text-base sm:text-lg font-bold text-amber-400 mt-1">9 笔错杀样本 (共10笔解剖)</div>
+        <div id="kpiWsMeta" class="text-[11px] text-slate-400 mt-1">中位 0.66x ATR20 | 75%集中在入场D1–D3被扫</div>
+      </div>
+    </section>
+
+    <!-- Dual Synchronized Interactive Chart Container -->
+    <section class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <span>面板 1：WTI 原油主力连续价格 ($/桶) 与多空入场/退出信号同步叠加图</span>
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">
+            支持鼠标悬停十字线联动与直接点击图上任意信号标记（▼做空 / ▲抄底 / ◆突破 / ✖错杀）载入下方交易显微镜
+          </p>
+        </div>
+        <div id="chartTooltip" class="hidden bg-slate-950/90 border border-slate-700 rounded-xl px-3 py-1.5 text-xs"></div>
+      </div>
+
+      <!-- Canvas 1: WTI Price + Signals -->
+      <div class="relative h-72 sm:h-80 w-full">
+        <canvas id="wtiPriceCanvas" class="w-full h-full block"></canvas>
+      </div>
+
+      <!-- Legend Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="flex items-center gap-1"><span class="text-rose-400 font-bold">▼</span> Q3 顶部右侧做空/减仓</span>
+          <span class="flex items-center gap-1"><span class="text-emerald-400 font-bold">▲</span> Q1 恐慌抄底+2ATR退出</span>
+          <span class="flex items-center gap-1"><span class="text-sky-400 font-bold">◆</span> Q2 突破续涨+止盈退出</span>
+          <span class="flex items-center gap-1"><span class="text-amber-400 font-bold">✖</span> IV60 固定3%窄止损错杀样本</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-purple-400"></span> 5日均线 (5MA)</span>
+        </div>
+        <span class="font-mono-num text-slate-400">每手 CL 合约已扣除 $90 双边摩擦成本</span>
+      </div>
+
+      <!-- Canvas 2: Synchronized WTI Options ATM IV & Dispersion -->
+      <div class="pt-2 border-t border-slate-800/80">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-semibold text-slate-300">面板 2：同步 WTI 期权 30D ATM 隐含波动率 (%) 与 60日五节点离散度 (iv_std_60)</span>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="text-rose-300">● 30D ATM IV (%)</span>
+            <span class="text-amber-300">● 60D IV离散度 (iv_std_60 缩放)</span>
+          </div>
+        </div>
+        <div class="relative h-36 w-full">
+          <canvas id="wtiIvCanvas" class="w-full h-full block"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Single-Trade Microscope (交易显微镜) -->
+    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-sky-500/30 rounded-2xl p-4 sm:p-5 shadow-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-800">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-sky-400">🔬 交易显微镜 (单笔实证信号解剖)</span>
+          <span id="microBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-rose-500/20 text-rose-300 border-rose-500/40">
+            ▼ Q3 顶部右侧做空 / 止盈
+          </span>
+          <span id="microPosIndex" class="text-xs font-mono-num text-slate-400">当前筛选第 16 / 71 笔</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnPrevSig" type="button" class="px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition">
+            ← 上一笔信号
+          </button>
+          <button id="btnNextSig" type="button" class="px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition">
+            下一笔信号 →
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-3.5">
+        <div class="lg:col-span-2 space-y-2.5">
+          <div>
+            <div class="text-[11px] text-slate-400">信号名称与离场类型</div>
+            <div id="microName" class="text-base sm:text-lg font-bold text-white mt-0.5">
+              Q3 蝶式+低VoV双共振破位做空（TP_HIT 止盈离场）
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">交易周期</div>
+              <div id="microDates" class="text-xs sm:text-sm font-mono-num text-slate-100 mt-0.5">
+                2026-04-10（入场） → 2026-04-24（退出）
+              </div>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">单手净损益 (CL 1,000桶/手)</div>
+              <div id="microPnl" class="text-base sm:text-lg font-bold font-mono-num text-emerald-400 mt-0.5">
+                +$9,289（收益率 +8.90%，已扣除 $90 成本）
+              </div>
+            </div>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+            <div class="text-[11px] text-slate-400">触发价格与核心期权/量价指标分位</div>
+            <div id="microPriceIndicator" class="text-xs sm:text-sm font-mono-num text-sky-300 mt-0.5">
+              原油开仓价 $104.54 → 平仓价 $95.16 | ROC+BF25 (P96 分位) &amp; VoV (P16 分位)
+            </div>
+          </div>
+        </div>
+
+        <!-- 20-Day Risk Path & Attribution Box -->
+        <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between space-y-3">
+          <div class="space-y-2">
+            <div class="text-xs font-semibold text-slate-300">20日持仓风险路径 (MFE / MAE)</div>
+            <div id="microMfeMae" class="text-xs font-mono-num text-slate-200">
+              最大有利变动 (MFE) +10.2% / 最大不利变动 (MAE) -1.0%
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="w-12 text-emerald-400 font-mono-num">MFE</span>
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div id="microMfeBar" class="h-full bg-emerald-400 rounded-full" style="width: 26%;"></div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="w-12 text-rose-400 font-mono-num">MAE</span>
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div id="microMaeBar" class="h-full bg-rose-400 rounded-full" style="width: 6%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-slate-800 pt-2.5">
+            <div class="text-[11px] text-slate-400">实证微观归因诊断</div>
+            <p id="microNote" class="text-xs text-slate-300 mt-1 leading-relaxed">
+              2026样本外旗舰做空信号：双策略共振叠加右侧跌破5日均线，两周斩获+$9,289。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Research Deep-Dive & Signal Ledger Tabs -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div class="flex flex-wrap border-b border-slate-800 bg-slate-950/60 px-2 pt-1">
+        <button type="button" data-tab-target="ledger" class="tab-btn-active px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          1. 实证信号明细账本 (71笔可检索)
+        </button>
+        <button type="button" data-tab-target="dim1" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          2. 维度一：多头退出与3%窄止损错杀解剖
+        </button>
+        <button type="button" data-tab-target="dim23" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          3. 维度二/三：Q3顶部止盈与Greeks证伪
+        </button>
+        <button type="button" data-tab-target="dim4" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          4. 维度四：右侧破位做空实证与跨资产规律
+        </button>
+      </div>
+
+      <!-- Tab Panel 1: Interactive Signal Ledger -->
+      <div data-tab-panel="ledger" class="p-4 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <input id="ledgerSearchInput" type="text" placeholder="搜索日期、信号名称、指标(如 BF25, VoV, 2ATR, 错杀)..." class="w-full sm:w-80 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+            <span id="ledgerMatchCount" class="text-xs font-mono-num text-slate-400 shrink-0">共 71 笔匹配记录</span>
+          </div>
+          <button id="btnExportCsv" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-500/20 border border-sky-500/40 text-sky-300 hover:bg-sky-500/30 transition self-start sm:self-auto">
+            ⬇ 导出当前筛选信号 CSV
+          </button>
+        </div>
+        <div class="overflow-x-auto max-h-96 custom-scrollbar border border-slate-800 rounded-xl">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-950 sticky top-0 z-10 text-[11px] uppercase text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="py-2.5 px-3">入场日期</th>
+                <th class="py-2.5 px-3">图层类别</th>
+                <th class="py-2.5 px-3">信号名称与离场类型</th>
+                <th class="py-2.5 px-3 text-right">开仓 → 平仓</th>
+                <th class="py-2.5 px-3 text-right">净损益 (收益率)</th>
+                <th class="py-2.5 px-3 text-right">20D MFE / MAE</th>
+                <th class="py-2.5 px-3 hidden md:table-cell">核心触发指标</th>
+              </tr>
+            </thead>
+            <tbody id="signalLedgerBody" class="divide-y divide-slate-800/60 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Panel 2: Dimension 1 (Long Exit & 2026 Whipsaw Anatomy) -->
+      <div data-tab-panel="dim1" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-amber-400 font-semibold">固定 3% 窄止损的微观病灶</div>
+            <div class="text-lg font-bold text-white mt-1">16笔止损中 12笔 (75%) 发生在 D1–D3</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              24笔 iv_std_60 多头交易在传统 +5%/-3% 规则下净亏 <b class="text-rose-400">-$11,440</b>（胜率仅33.33%）。3%止损折合当时 ATR20 比值中位数仅 <b class="text-amber-300">0.66倍</b>，9笔被洗出后重新涨破+5%。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-emerald-400 font-semibold">2ATR 自适应止损 + 等风险缩仓</div>
+            <div class="text-lg font-bold text-white mt-1">净利扭亏至 +$6,892（t+1入场达 +$10,008）</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              单纯放宽至 2ATR 虽挽救9笔错杀但最大回撤恶化至 -$28,215；叠加动态美元等风险缩仓（平均0.434手）后，58.4%的改善来自高波期尾部权重再分配。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-sky-400 font-semibold">Timer Reset 重置与 40日亏损崖</div>
+            <div class="text-lg font-bold text-white mt-1">重置年化 +28.92% (Sharpe 0.89)</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              信号重复触发重置20日倒计时可完整捕捉跨季度大趋势（均持72天）；固定持有期网格显示 10日(+$96.9k)与20日(+$54.5k)最优，40日(-$2.6k)出现跨策略亏损崖。
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-sm font-bold text-white">2026年样本外 5 笔 3% 窄止损交易微观解剖表（点击任意行可在上方图表定位）</h3>
+          <div class="overflow-x-auto border border-slate-800 rounded-xl">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">入场日期</th>
+                  <th class="py-2.5 px-3">市场与趋势环境</th>
+                  <th class="py-2.5 px-3">原规则止损时点</th>
+                  <th class="py-2.5 px-3 text-right">实际离场损益</th>
+                  <th class="py-2.5 px-3 text-right">20日期末实际涨跌</th>
+                  <th class="py-2.5 px-3">错杀与归因判定</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/70">
+                <tr data-jump-signal="WS-06" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-01-13</td>
+                  <td class="py-2.5 px-3">短线急涨（非高波）</td>
+                  <td class="py-2.5 px-3">第 2 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$1,920</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+5.5%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+                <tr data-jump-signal="WS-07" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-02-11</td>
+                  <td class="py-2.5 px-3">正常上升趋势（非高波）</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,040</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+36.6%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（错过重大主升浪）</td>
+                </tr>
+                <tr data-jump-signal="WS-08" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-05-20</td>
+                  <td class="py-2.5 px-3">正常上升趋势（高波动）</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$3,060</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400 font-bold">-22.6%</td>
+                  <td class="py-2.5 px-3 text-emerald-300 font-medium">真实下行（成功避险）</td>
+                </tr>
+                <tr data-jump-signal="WS-09" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-07-08</td>
+                  <td class="py-2.5 px-3">反弹或趋势未完整</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,340</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+0.5% (盘中+5.8%)</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+                <tr data-jump-signal="WS-10" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-08-18</td>
+                  <td class="py-2.5 px-3">反弹或趋势未完整（高波）</td>
+                  <td class="py-2.5 px-3">第 5 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,630</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+24.3%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 3: Dimension 2 & 3 (Q3 Top Signals & Option Greeks Falsification) -->
+      <div data-tab-panel="dim23" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-semibold text-sky-400">Q3 上涨尾声场景（60日累计涨幅 ≥ 15%，58次独立事件）40日基础概率结构</div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2.5">
+            <div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30">
+              <div class="text-xs text-rose-300">真正转跌 (收益 ≤ -8%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">18 次 (32.14%)</div>
+            </div>
+            <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div class="text-xs text-amber-300">高位横盘 (-8% ~ +6%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">20 次 (35.72%)</div>
+            </div>
+            <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+              <div class="text-xs text-emerald-300">继续大涨 (收益 ≥ +6%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">18 次 (32.14%)</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2.5">
+            核心结论：上涨尾声“不再继续大涨”（转弱：横盘或转跌）基础概率达 <b class="text-white">67.9%</b>，其中 <code class="text-sky-300">adx_14 &lt; 40%</code> 触发时转弱成功率高达 <b class="text-emerald-400">91.3%</b>，期权期限结构 <code class="text-sky-300">ts_30_90</code> 高分位转跌率达 <b class="text-rose-400">55.6%</b>。
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-sm font-bold text-white">期权 Greeks 与曲面高阶指标预测力证伪与增量评估表</h3>
+          <div class="overflow-x-auto border border-slate-800 rounded-xl">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">指标代码与名称</th>
+                  <th class="py-2.5 px-3">数学定义 / 表达口径</th>
+                  <th class="py-2.5 px-3">全周期与留出期实证结论</th>
+                  <th class="py-2.5 px-3">实用推荐与应用定位</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/70">
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-emerald-300 font-semibold">gamma_wtd_strike<br><span class="text-xs text-slate-400">(Gamma加权行权价)</span></td>
+                  <td class="py-2.5 px-3 font-mono-num text-xs">∑(w·K)/∑w, w = OI·γ·F²·1000·0.01</td>
+                  <td class="py-2.5 px-3">控 rv20 后 t = -2.01，Rank IC = -0.261；4/4口径与3/3时间分段全部同号</td>
+                  <td class="py-2.5 px-3 text-emerald-400 font-medium">★ 最优 Greeks 指标（强烈推荐）：上方Gamma阻力沉重预示均值回归下跌</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-emerald-300 font-semibold">net_call_gamma_share<br><span class="text-xs text-slate-400">(净看涨Gamma占比)</span></td>
+                  <td class="py-2.5 px-3 text-xs">看涨 Gamma 权重占全链比例偏离 50%</td>
+                  <td class="py-2.5 px-3">Q3低分位触发19次，转弱精度 89.5%，转跌率 42.1% (Fisher p=0.0264)</td>
+                  <td class="py-2.5 px-3 text-emerald-400 font-medium">★ 优秀平仓/减仓确认指标：上涨末期看涨Gamma占比骤降是极佳平仓信号</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-rose-300 font-semibold">vanna_abs_risk_proxy<br><span class="text-xs text-slate-400">(Vanna绝对风险量)</span></td>
+                  <td class="py-2.5 px-3 font-mono-num text-xs">∑(OI·|Vanna|·F·1000·0.01)</td>
+                  <td class="py-2.5 px-3">开发期 IC=0.252，但 2026 留出期彻底反转失效 (IC=-0.311)，Brier改善 p=1.0</td>
+                  <td class="py-2.5 px-3 text-rose-400 font-medium">✖ 证伪 / 严禁独立做空：本质是价格与波动率水平的衍生影子</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-amber-300 font-semibold">opt_downside_wing_premium<br><span class="text-xs text-slate-400">(30D 10Δ Put溢价)</span></td>
+                  <td class="py-2.5 px-3 text-xs">30天 10Δ Put 相对 ATM 隐波溢价</td>
+                  <td class="py-2.5 px-3">历史仅过度拟合 2020 年极端负油价黑天鹅，2026 样本外检验崩溃</td>
+                  <td class="py-2.5 px-3 text-amber-400 font-medium">⚠ 高危机拟合陷阱：严禁作为日常顶部做空依据</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 4: Dimension 4 (Direct Short Strategies & Right-Side 5MA Gate) -->
+      <div data-tab-panel="dim4" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-slate-950/70 border border-rose-500/30 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-rose-400">策略一：comp_roc120_bf25 + 右侧跌破5MA门控</span>
+              <span class="px-2 py-0.5 text-[11px] rounded bg-emerald-500/20 text-emerald-300 font-mono-num">PASS_LIVE_READY</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              120日涨幅 + 30D 25Δ蝶式凸度复合高分位 (≥80%) 叠加右侧跌破5日均线确认（NW t = 2.46, BH-FDR q = 0.048）：
+            </p>
+            <ul class="text-xs text-slate-300 space-y-1 font-mono-num">
+              <li>• 开发期 (2019–2025, 14笔)：胜率 <b>71.4%</b> | 均益 +5.12% | 净利 <b class="text-emerald-400">+$38,900</b> | Sharpe 1.48</li>
+              <li>• 2026样本外 (4笔)：胜率 <b>75.0%</b> | 均益 +6.70% | 净利 <b class="text-emerald-400">+$28,640</b> | <b>Sharpe 2.08</b></li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-950/70 border border-sky-500/30 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-sky-400">策略二：vol_of_vol_252 (≤20%分位) + 右侧跌破5MA门控</span>
+              <span class="px-2 py-0.5 text-[11px] rounded bg-emerald-500/20 text-emerald-300 font-mono-num">PASS_LIVE_READY</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              252日 Vol-of-Vol 历史极低分位 (≤20%) 捕捉高位静默自满顶部，叠加右侧跌破5日均线确认（t = 2.19, p = 0.0285）：
+            </p>
+            <ul class="text-xs text-slate-300 space-y-1 font-mono-num">
+              <li>• 开发期 (2019–2025, 10笔)：胜率 <b>80.0%</b> | 均益 +6.08% | 净利 <b class="text-emerald-400">+$29,120</b> | Sharpe 1.56</li>
+              <li>• 2026样本外 (4笔)：胜率 <b>75.0%</b> | 均益 +6.62% | 净利 <b class="text-emerald-400">+$22,180</b> | <b>Sharpe 1.82</b></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-rose-950/25 border border-rose-800/50 rounded-xl p-4">
+            <div class="text-xs font-bold text-rose-300">⚠ 左侧直接摸顶陷阱对比（去除右侧 5MA 门控）</div>
+            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              若去除右侧跌破5日均线门控、在指标触及高分位当日左侧直接摸顶做空，2026年样本外做空胜率将从 <b>75.0%</b> 暴跌至 <b class="text-rose-400">28.6%</b>，两策略分别出现 <b class="text-rose-400">-$38,340</b> 与 <b class="text-rose-400">-$42,445</b> 巨额亏损（PF 仅 0.34）。右侧破位门控是做空存活的生死线。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs font-bold text-sky-300">跨资产纳指 NQ ADX (>80%分位) 做空原油持有期法则</div>
+            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              • <b>下跌+高波动状态</b> (流动性冲击急跌)：<b>5–10日必须快平</b>（5日 +$45,400，10日 +$39,700；40日反亏 -$4,400）。<br/>
+              • <b>下跌+低波动状态</b> (阴跌趋势)：<b>20–40日长拿收益更高</b>（5日 +$9,900 → 20日 +$17,800 → 40日 <b class="text-emerald-400">+$25,600</b>）。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-900">
+    WTI原油期货 (CL) 与美式期权链 (LO) 实证信号交互复盘终端 • 数据跨度 2014.01 – 2026.10
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

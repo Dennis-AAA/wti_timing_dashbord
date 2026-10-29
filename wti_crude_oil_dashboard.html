@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WTI原油价格走势叠加多空入场、退出与做空信号交互看板 (2014–2026)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+/* WTI Crude Oil Empirical Signal Dashboard Styles */
+:root {
+  --bg-primary: #0b0f17;
+  --bg-card: #111827;
+  --bg-elevated: #1e293b;
+  --border-subtle: rgba(148, 163, 184, 0.14);
+}
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background-color: #0b0f17;
+  color: #f1f5f9;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+.font-mono-num {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+.filter-btn-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(37, 99, 235, 0.14));
+  border-color: rgba(96, 165, 250, 0.75) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+.layer-btn-active-ALL {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+}
+.layer-btn-active-Q3 {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: #fb7185 !important;
+  color: #ffe4e6 !important;
+}
+.layer-btn-active-Q1 {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #34d399 !important;
+  color: #d1fae5 !important;
+}
+.layer-btn-active-Q2 {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8 !important;
+  color: #e0f2fe !important;
+}
+.layer-btn-active-WHIPSAW {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #fbbf24 !important;
+  color: #fef3c7 !important;
+}
+.tab-btn-active {
+  border-bottom: 2px solid #38bdf8;
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+  </style>
+</head>
+<body class="min-h-screen bg-[#0b0f17] text-slate-100 selection:bg-sky-500 selection:text-white">
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900/95 border border-sky-500/50 text-sky-100 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md">
+    <span class="inline-block w-2 h-2 rounded-full bg-sky-400"></span>
+    <span id="toastText">操作成功</span>
+  </div>
+
+  <!-- Top Header -->
+  <header class="border-b border-slate-800/80 bg-slate-950/90 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/30">Databento GLBX.MDP3 • CL &amp; LO</span>
+          <span class="px-2.5 py-0.5 text-[11px] font-mono-num rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">2014.01 – 2026.10 (3,966 交易日)</span>
+          <span class="px-2.5 py-0.5 text-[11px] rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/30">PASS_LIVE_READY 实证复盘</span>
+        </div>
+        <h1 class="text-lg sm:text-xl md:text-2xl font-bold text-white mt-1 tracking-tight">
+          WTI原油价格走势叠加多空入场、退出与做空信号交互看板
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">
+          《WTI原油期货多头退出机制、期权Greeks信号检验与系统化做空策略深度研究报告》核心交互复盘终端
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnToggleMA5" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border bg-purple-500/25 border-purple-400 text-purple-200 transition hover:bg-purple-500/35">
+          5日均线 (5MA门控)
+        </button>
+        <button id="btnTogglePath" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border bg-emerald-500/25 border-emerald-400 text-emerald-200 transition hover:bg-emerald-500/35">
+          持仓路径连线
+        </button>
+        <button id="btnResetFilters" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:bg-slate-700">
+          重置全周期视图
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- Filter Controls Card -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3.5">
+      <!-- Time Window Selector -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 w-28 shrink-0">时间窗口选择：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-period-btn="ALL" class="filter-btn-active px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            全周期 (2014–2026)
+          </button>
+          <button type="button" data-period-btn="2014-2019" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2014–2019 早期样本
+          </button>
+          <button type="button" data-period-btn="2020-2022" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2020–2022 疫情与通胀周期
+          </button>
+          <button type="button" data-period-btn="2023-2024" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2023–2024 震荡期
+          </button>
+          <button type="button" data-period-btn="2025-2026" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500">
+            2025–2026 样本外大考
+          </button>
+        </div>
+      </div>
+
+      <!-- Signal Layer Selector -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-slate-800/80">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 w-28 shrink-0">信号图层选择：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button type="button" data-layer-btn="ALL" class="layer-btn-active-ALL px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-slate-300 transition hover:border-slate-500 flex items-center gap-1.5">
+            <span>全部信号</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">71笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q3" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-rose-300 transition hover:border-rose-500/50 flex items-center gap-1.5">
+            <span>▼ Q3 顶部右侧做空 / 止盈</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">18笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q1" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-emerald-300 transition hover:border-emerald-500/50 flex items-center gap-1.5">
+            <span>▲ Q1 恐慌抄底 + 三重障碍退出</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">24笔</span>
+          </button>
+          <button type="button" data-layer-btn="Q2" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-sky-300 transition hover:border-sky-500/50 flex items-center gap-1.5">
+            <span>◆ Q2 突破续涨 + 止盈退出</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">19笔</span>
+          </button>
+          <button type="button" data-layer-btn="WHIPSAW" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/80 bg-slate-800/60 text-amber-300 transition hover:border-amber-500/50 flex items-center gap-1.5">
+            <span>✖ IV60 窄止损3%错杀诊断</span>
+            <span data-layer-count class="px-1.5 py-0.2 rounded bg-slate-950/60 font-mono-num text-[11px]">10笔</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dynamic 4 KPI Summary Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
+        <div class="text-xs text-slate-400 font-medium">当前可见信号总数</div>
+        <div id="kpiTotalCount" class="text-xl sm:text-2xl font-bold font-mono-num text-white mt-1">71 笔</div>
+        <div id="kpiTotalSub" class="text-[11px] text-slate-400 mt-1">Q3做空 18 | Q1抄底 24 | Q2突破 19 | 窄止损 10</div>
+      </div>
+      <div class="bg-slate-900/90 border border-rose-900/40 rounded-2xl p-4">
+        <div class="text-xs text-rose-300 font-medium">▼ Q3 顶部右侧门控做空损益</div>
+        <div id="kpiQ3Pnl" class="text-xl sm:text-2xl font-bold font-mono-num text-rose-400 mt-1">+$68,577</div>
+        <div id="kpiQ3Meta" class="text-[11px] text-slate-400 mt-1">18笔 | 胜率 72% (右侧跌破5MA门控)</div>
+      </div>
+      <div class="bg-slate-900/90 border border-emerald-900/40 rounded-2xl p-4">
+        <div class="text-xs text-emerald-300 font-medium">▲/◆ Q1+Q2 多头退出总损益</div>
+        <div id="kpiLongPnl" class="text-xl sm:text-2xl font-bold font-mono-num text-emerald-400 mt-1">+$192,740</div>
+        <div id="kpiLongMeta" class="text-[11px] text-slate-400 mt-1">43笔 | 胜率 93% (2ATR自适应+重置)</div>
+      </div>
+      <div class="bg-slate-900/90 border border-amber-900/40 rounded-2xl p-4">
+        <div class="text-xs text-amber-300 font-medium">✖ 3%窄止损错杀诊断特征</div>
+        <div id="kpiWsTitle" class="text-base sm:text-lg font-bold text-amber-400 mt-1">9 笔错杀样本 (共10笔解剖)</div>
+        <div id="kpiWsMeta" class="text-[11px] text-slate-400 mt-1">中位 0.66x ATR20 | 75%集中在入场D1–D3被扫</div>
+      </div>
+    </section>
+
+    <!-- Dual Synchronized Interactive Chart Container -->
+    <section class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <span>面板 1：WTI 原油主力连续价格 ($/桶) 与多空入场/退出信号同步叠加图</span>
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">
+            支持鼠标悬停十字线联动与直接点击图上任意信号标记（▼做空 / ▲抄底 / ◆突破 / ✖错杀）载入下方交易显微镜
+          </p>
+        </div>
+        <div id="chartTooltip" class="hidden bg-slate-950/90 border border-slate-700 rounded-xl px-3 py-1.5 text-xs"></div>
+      </div>
+
+      <!-- Canvas 1: WTI Price + Signals -->
+      <div class="relative h-72 sm:h-80 w-full">
+        <canvas id="wtiPriceCanvas" class="w-full h-full block"></canvas>
+      </div>
+
+      <!-- Legend Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="flex items-center gap-1"><span class="text-rose-400 font-bold">▼</span> Q3 顶部右侧做空/减仓</span>
+          <span class="flex items-center gap-1"><span class="text-emerald-400 font-bold">▲</span> Q1 恐慌抄底+2ATR退出</span>
+          <span class="flex items-center gap-1"><span class="text-sky-400 font-bold">◆</span> Q2 突破续涨+止盈退出</span>
+          <span class="flex items-center gap-1"><span class="text-amber-400 font-bold">✖</span> IV60 固定3%窄止损错杀样本</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-purple-400"></span> 5日均线 (5MA)</span>
+        </div>
+        <span class="font-mono-num text-slate-400">每手 CL 合约已扣除 $90 双边摩擦成本</span>
+      </div>
+
+      <!-- Canvas 2: Synchronized WTI Options ATM IV & Dispersion -->
+      <div class="pt-2 border-t border-slate-800/80">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-semibold text-slate-300">面板 2：同步 WTI 期权 30D ATM 隐含波动率 (%) 与 60日五节点离散度 (iv_std_60)</span>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="text-rose-300">● 30D ATM IV (%)</span>
+            <span class="text-amber-300">● 60D IV离散度 (iv_std_60 缩放)</span>
+          </div>
+        </div>
+        <div class="relative h-36 w-full">
+          <canvas id="wtiIvCanvas" class="w-full h-full block"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Single-Trade Microscope (交易显微镜) -->
+    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-sky-500/30 rounded-2xl p-4 sm:p-5 shadow-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-800">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-sky-400">🔬 交易显微镜 (单笔实证信号解剖)</span>
+          <span id="microBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-rose-500/20 text-rose-300 border-rose-500/40">
+            ▼ Q3 顶部右侧做空 / 止盈
+          </span>
+          <span id="microPosIndex" class="text-xs font-mono-num text-slate-400">当前筛选第 16 / 71 笔</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnPrevSig" type="button" class="px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition">
+            ← 上一笔信号
+          </button>
+          <button id="btnNextSig" type="button" class="px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition">
+            下一笔信号 →
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-3.5">
+        <div class="lg:col-span-2 space-y-2.5">
+          <div>
+            <div class="text-[11px] text-slate-400">信号名称与离场类型</div>
+            <div id="microName" class="text-base sm:text-lg font-bold text-white mt-0.5">
+              Q3 蝶式+低VoV双共振破位做空（TP_HIT 止盈离场）
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">交易周期</div>
+              <div id="microDates" class="text-xs sm:text-sm font-mono-num text-slate-100 mt-0.5">
+                2026-04-10（入场） → 2026-04-24（退出）
+              </div>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+              <div class="text-[11px] text-slate-400">单手净损益 (CL 1,000桶/手)</div>
+              <div id="microPnl" class="text-base sm:text-lg font-bold font-mono-num text-emerald-400 mt-0.5">
+                +$9,289（收益率 +8.90%，已扣除 $90 成本）
+              </div>
+            </div>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+            <div class="text-[11px] text-slate-400">触发价格与核心期权/量价指标分位</div>
+            <div id="microPriceIndicator" class="text-xs sm:text-sm font-mono-num text-sky-300 mt-0.5">
+              原油开仓价 $104.54 → 平仓价 $95.16 | ROC+BF25 (P96 分位) &amp; VoV (P16 分位)
+            </div>
+          </div>
+        </div>
+
+        <!-- 20-Day Risk Path & Attribution Box -->
+        <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between space-y-3">
+          <div class="space-y-2">
+            <div class="text-xs font-semibold text-slate-300">20日持仓风险路径 (MFE / MAE)</div>
+            <div id="microMfeMae" class="text-xs font-mono-num text-slate-200">
+              最大有利变动 (MFE) +10.2% / 最大不利变动 (MAE) -1.0%
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="w-12 text-emerald-400 font-mono-num">MFE</span>
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div id="microMfeBar" class="h-full bg-emerald-400 rounded-full" style="width: 26%;"></div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="w-12 text-rose-400 font-mono-num">MAE</span>
+                <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div id="microMaeBar" class="h-full bg-rose-400 rounded-full" style="width: 6%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-slate-800 pt-2.5">
+            <div class="text-[11px] text-slate-400">实证微观归因诊断</div>
+            <p id="microNote" class="text-xs text-slate-300 mt-1 leading-relaxed">
+              2026样本外旗舰做空信号：双策略共振叠加右侧跌破5日均线，两周斩获+$9,289。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Research Deep-Dive & Signal Ledger Tabs -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div class="flex flex-wrap border-b border-slate-800 bg-slate-950/60 px-2 pt-1">
+        <button type="button" data-tab-target="ledger" class="tab-btn-active px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          1. 实证信号明细账本 (71笔可检索)
+        </button>
+        <button type="button" data-tab-target="dim1" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          2. 维度一：多头退出与3%窄止损错杀解剖
+        </button>
+        <button type="button" data-tab-target="dim23" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          3. 维度二/三：Q3顶部止盈与Greeks证伪
+        </button>
+        <button type="button" data-tab-target="dim4" class="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-300 transition">
+          4. 维度四：右侧破位做空实证与跨资产规律
+        </button>
+      </div>
+
+      <!-- Tab Panel 1: Interactive Signal Ledger -->
+      <div data-tab-panel="ledger" class="p-4 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <input id="ledgerSearchInput" type="text" placeholder="搜索日期、信号名称、指标(如 BF25, VoV, 2ATR, 错杀)..." class="w-full sm:w-80 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+            <span id="ledgerMatchCount" class="text-xs font-mono-num text-slate-400 shrink-0">共 71 笔匹配记录</span>
+          </div>
+          <button id="btnExportCsv" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-500/20 border border-sky-500/40 text-sky-300 hover:bg-sky-500/30 transition self-start sm:self-auto">
+            ⬇ 导出当前筛选信号 CSV
+          </button>
+        </div>
+        <div class="overflow-x-auto max-h-96 custom-scrollbar border border-slate-800 rounded-xl">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-950 sticky top-0 z-10 text-[11px] uppercase text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="py-2.5 px-3">入场日期</th>
+                <th class="py-2.5 px-3">图层类别</th>
+                <th class="py-2.5 px-3">信号名称与离场类型</th>
+                <th class="py-2.5 px-3 text-right">开仓 → 平仓</th>
+                <th class="py-2.5 px-3 text-right">净损益 (收益率)</th>
+                <th class="py-2.5 px-3 text-right">20D MFE / MAE</th>
+                <th class="py-2.5 px-3 hidden md:table-cell">核心触发指标</th>
+              </tr>
+            </thead>
+            <tbody id="signalLedgerBody" class="divide-y divide-slate-800/60 text-sm"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Panel 2: Dimension 1 (Long Exit & 2026 Whipsaw Anatomy) -->
+      <div data-tab-panel="dim1" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-amber-400 font-semibold">固定 3% 窄止损的微观病灶</div>
+            <div class="text-lg font-bold text-white mt-1">16笔止损中 12笔 (75%) 发生在 D1–D3</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              24笔 iv_std_60 多头交易在传统 +5%/-3% 规则下净亏 <b class="text-rose-400">-$11,440</b>（胜率仅33.33%）。3%止损折合当时 ATR20 比值中位数仅 <b class="text-amber-300">0.66倍</b>，9笔被洗出后重新涨破+5%。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-emerald-400 font-semibold">2ATR 自适应止损 + 等风险缩仓</div>
+            <div class="text-lg font-bold text-white mt-1">净利扭亏至 +$6,892（t+1入场达 +$10,008）</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              单纯放宽至 2ATR 虽挽救9笔错杀但最大回撤恶化至 -$28,215；叠加动态美元等风险缩仓（平均0.434手）后，58.4%的改善来自高波期尾部权重再分配。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs text-sky-400 font-semibold">Timer Reset 重置与 40日亏损崖</div>
+            <div class="text-lg font-bold text-white mt-1">重置年化 +28.92% (Sharpe 0.89)</div>
+            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
+              信号重复触发重置20日倒计时可完整捕捉跨季度大趋势（均持72天）；固定持有期网格显示 10日(+$96.9k)与20日(+$54.5k)最优，40日(-$2.6k)出现跨策略亏损崖。
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-sm font-bold text-white">2026年样本外 5 笔 3% 窄止损交易微观解剖表（点击任意行可在上方图表定位）</h3>
+          <div class="overflow-x-auto border border-slate-800 rounded-xl">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">入场日期</th>
+                  <th class="py-2.5 px-3">市场与趋势环境</th>
+                  <th class="py-2.5 px-3">原规则止损时点</th>
+                  <th class="py-2.5 px-3 text-right">实际离场损益</th>
+                  <th class="py-2.5 px-3 text-right">20日期末实际涨跌</th>
+                  <th class="py-2.5 px-3">错杀与归因判定</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/70">
+                <tr data-jump-signal="WS-06" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-01-13</td>
+                  <td class="py-2.5 px-3">短线急涨（非高波）</td>
+                  <td class="py-2.5 px-3">第 2 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$1,920</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+5.5%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+                <tr data-jump-signal="WS-07" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-02-11</td>
+                  <td class="py-2.5 px-3">正常上升趋势（非高波）</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,040</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+36.6%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（错过重大主升浪）</td>
+                </tr>
+                <tr data-jump-signal="WS-08" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-05-20</td>
+                  <td class="py-2.5 px-3">正常上升趋势（高波动）</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$3,060</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400 font-bold">-22.6%</td>
+                  <td class="py-2.5 px-3 text-emerald-300 font-medium">真实下行（成功避险）</td>
+                </tr>
+                <tr data-jump-signal="WS-09" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-07-08</td>
+                  <td class="py-2.5 px-3">反弹或趋势未完整</td>
+                  <td class="py-2.5 px-3">第 1 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,340</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+0.5% (盘中+5.8%)</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+                <tr data-jump-signal="WS-10" class="hover:bg-slate-800/60 cursor-pointer">
+                  <td class="py-2.5 px-3 font-mono-num font-semibold text-sky-300">2026-08-18</td>
+                  <td class="py-2.5 px-3">反弹或趋势未完整（高波）</td>
+                  <td class="py-2.5 px-3">第 5 日被扫</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-rose-400">-$2,630</td>
+                  <td class="py-2.5 px-3 text-right font-mono-num text-emerald-400 font-bold">+24.3%</td>
+                  <td class="py-2.5 px-3 text-amber-300 font-medium">✓ 错杀（重返 +5%）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 3: Dimension 2 & 3 (Q3 Top Signals & Option Greeks Falsification) -->
+      <div data-tab-panel="dim23" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs font-semibold text-sky-400">Q3 上涨尾声场景（60日累计涨幅 ≥ 15%，58次独立事件）40日基础概率结构</div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2.5">
+            <div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30">
+              <div class="text-xs text-rose-300">真正转跌 (收益 ≤ -8%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">18 次 (32.14%)</div>
+            </div>
+            <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div class="text-xs text-amber-300">高位横盘 (-8% ~ +6%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">20 次 (35.72%)</div>
+            </div>
+            <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+              <div class="text-xs text-emerald-300">继续大涨 (收益 ≥ +6%)</div>
+              <div class="text-lg font-bold font-mono-num text-white mt-0.5">18 次 (32.14%)</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2.5">
+            核心结论：上涨尾声“不再继续大涨”（转弱：横盘或转跌）基础概率达 <b class="text-white">67.9%</b>，其中 <code class="text-sky-300">adx_14 &lt; 40%</code> 触发时转弱成功率高达 <b class="text-emerald-400">91.3%</b>，期权期限结构 <code class="text-sky-300">ts_30_90</code> 高分位转跌率达 <b class="text-rose-400">55.6%</b>。
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-sm font-bold text-white">期权 Greeks 与曲面高阶指标预测力证伪与增量评估表</h3>
+          <div class="overflow-x-auto border border-slate-800 rounded-xl">
+            <table class="w-full text-left text-xs sm:text-sm">
+              <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">指标代码与名称</th>
+                  <th class="py-2.5 px-3">数学定义 / 表达口径</th>
+                  <th class="py-2.5 px-3">全周期与留出期实证结论</th>
+                  <th class="py-2.5 px-3">实用推荐与应用定位</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/70">
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-emerald-300 font-semibold">gamma_wtd_strike<br><span class="text-xs text-slate-400">(Gamma加权行权价)</span></td>
+                  <td class="py-2.5 px-3 font-mono-num text-xs">∑(w·K)/∑w, w = OI·γ·F²·1000·0.01</td>
+                  <td class="py-2.5 px-3">控 rv20 后 t = -2.01，Rank IC = -0.261；4/4口径与3/3时间分段全部同号</td>
+                  <td class="py-2.5 px-3 text-emerald-400 font-medium">★ 最优 Greeks 指标（强烈推荐）：上方Gamma阻力沉重预示均值回归下跌</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-emerald-300 font-semibold">net_call_gamma_share<br><span class="text-xs text-slate-400">(净看涨Gamma占比)</span></td>
+                  <td class="py-2.5 px-3 text-xs">看涨 Gamma 权重占全链比例偏离 50%</td>
+                  <td class="py-2.5 px-3">Q3低分位触发19次，转弱精度 89.5%，转跌率 42.1% (Fisher p=0.0264)</td>
+                  <td class="py-2.5 px-3 text-emerald-400 font-medium">★ 优秀平仓/减仓确认指标：上涨末期看涨Gamma占比骤降是极佳平仓信号</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-rose-300 font-semibold">vanna_abs_risk_proxy<br><span class="text-xs text-slate-400">(Vanna绝对风险量)</span></td>
+                  <td class="py-2.5 px-3 font-mono-num text-xs">∑(OI·|Vanna|·F·1000·0.01)</td>
+                  <td class="py-2.5 px-3">开发期 IC=0.252，但 2026 留出期彻底反转失效 (IC=-0.311)，Brier改善 p=1.0</td>
+                  <td class="py-2.5 px-3 text-rose-400 font-medium">✖ 证伪 / 严禁独立做空：本质是价格与波动率水平的衍生影子</td>
+                </tr>
+                <tr>
+                  <td class="py-2.5 px-3 font-mono-num text-amber-300 font-semibold">opt_downside_wing_premium<br><span class="text-xs text-slate-400">(30D 10Δ Put溢价)</span></td>
+                  <td class="py-2.5 px-3 text-xs">30天 10Δ Put 相对 ATM 隐波溢价</td>
+                  <td class="py-2.5 px-3">历史仅过度拟合 2020 年极端负油价黑天鹅，2026 样本外检验崩溃</td>
+                  <td class="py-2.5 px-3 text-amber-400 font-medium">⚠ 高危机拟合陷阱：严禁作为日常顶部做空依据</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Panel 4: Dimension 4 (Direct Short Strategies & Right-Side 5MA Gate) -->
+      <div data-tab-panel="dim4" class="hidden p-4 sm:p-5 space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-slate-950/70 border border-rose-500/30 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-rose-400">策略一：comp_roc120_bf25 + 右侧跌破5MA门控</span>
+              <span class="px-2 py-0.5 text-[11px] rounded bg-emerald-500/20 text-emerald-300 font-mono-num">PASS_LIVE_READY</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              120日涨幅 + 30D 25Δ蝶式凸度复合高分位 (≥80%) 叠加右侧跌破5日均线确认（NW t = 2.46, BH-FDR q = 0.048）：
+            </p>
+            <ul class="text-xs text-slate-300 space-y-1 font-mono-num">
+              <li>• 开发期 (2019–2025, 14笔)：胜率 <b>71.4%</b> | 均益 +5.12% | 净利 <b class="text-emerald-400">+$38,900</b> | Sharpe 1.48</li>
+              <li>• 2026样本外 (4笔)：胜率 <b>75.0%</b> | 均益 +6.70% | 净利 <b class="text-emerald-400">+$28,640</b> | <b>Sharpe 2.08</b></li>
+            </ul>
+          </div>
+
+          <div class="bg-slate-950/70 border border-sky-500/30 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase text-sky-400">策略二：vol_of_vol_252 (≤20%分位) + 右侧跌破5MA门控</span>
+              <span class="px-2 py-0.5 text-[11px] rounded bg-emerald-500/20 text-emerald-300 font-mono-num">PASS_LIVE_READY</span>
+            </div>
+            <p class="text-xs text-slate-300">
+              252日 Vol-of-Vol 历史极低分位 (≤20%) 捕捉高位静默自满顶部，叠加右侧跌破5日均线确认（t = 2.19, p = 0.0285）：
+            </p>
+            <ul class="text-xs text-slate-300 space-y-1 font-mono-num">
+              <li>• 开发期 (2019–2025, 10笔)：胜率 <b>80.0%</b> | 均益 +6.08% | 净利 <b class="text-emerald-400">+$29,120</b> | Sharpe 1.56</li>
+              <li>• 2026样本外 (4笔)：胜率 <b>75.0%</b> | 均益 +6.62% | 净利 <b class="text-emerald-400">+$22,180</b> | <b>Sharpe 1.82</b></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-rose-950/25 border border-rose-800/50 rounded-xl p-4">
+            <div class="text-xs font-bold text-rose-300">⚠ 左侧直接摸顶陷阱对比（去除右侧 5MA 门控）</div>
+            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              若去除右侧跌破5日均线门控、在指标触及高分位当日左侧直接摸顶做空，2026年样本外做空胜率将从 <b>75.0%</b> 暴跌至 <b class="text-rose-400">28.6%</b>，两策略分别出现 <b class="text-rose-400">-$38,340</b> 与 <b class="text-rose-400">-$42,445</b> 巨额亏损（PF 仅 0.34）。右侧破位门控是做空存活的生死线。
+            </p>
+          </div>
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4">
+            <div class="text-xs font-bold text-sky-300">跨资产纳指 NQ ADX (>80%分位) 做空原油持有期法则</div>
+            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              • <b>下跌+高波动状态</b> (流动性冲击急跌)：<b>5–10日必须快平</b>（5日 +$45,400，10日 +$39,700；40日反亏 -$4,400）。<br/>
+              • <b>下跌+低波动状态</b> (阴跌趋势)：<b>20–40日长拿收益更高</b>（5日 +$9,900 → 20日 +$17,800 → 40日 <b class="text-emerald-400">+$25,600</b>）。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-900">
+    WTI原油期货 (CL) 与美式期权链 (LO) 实证信号交互复盘终端 • 数据跨度 2014.01 – 2026.10
+  </footer>
+
+  <script>
+// WTI Crude Oil Futures (CL) & Options (LO) Empirical Signal Dataset (2014-2026)
+window.WTI_SERIES = [{"date": "2014-01-15", "price": 94.2, "ma5": 94.2, "iv": 21.5, "ivStd": 3.01, "period": "2014-2019"}, {"date": "2014-01-29", "price": 96.45, "ma5": 95.33, "iv": 20.3, "ivStd": 3.09, "period": "2014-2019"}, {"date": "2014-02-12", "price": 96.14, "ma5": 95.6, "iv": 20.7, "ivStd": 3.02, "period": "2014-2019"}, {"date": "2014-02-26", "price": 96.4, "ma5": 96.33, "iv": 20.8, "ivStd": 2.93, "period": "2014-2019"}, {"date": "2014-03-12", "price": 98.74, "ma5": 97.09, "iv": 19.6, "ivStd": 3.11, "period": "2014-2019"}, {"date": "2014-03-26", "price": 100.43, "ma5": 98.52, "iv": 18.7, "ivStd": 3.04, "period": "2014-2019"}, {"date": "2014-04-09", "price": 100.67, "ma5": 99.95, "iv": 18.8, "ivStd": 2.79, "period": "2014-2019"}, {"date": "2014-04-23", "price": 102.04, "ma5": 101.05, "iv": 18.2, "ivStd": 2.77, "period": "2014-2019"}, {"date": "2014-05-07", "price": 104.25, "ma5": 102.32, "iv": 17.1, "ivStd": 2.82, "period": "2014-2019"}, {"date": "2014-05-21", "price": 104.61, "ma5": 103.63, "iv": 17.1, "ivStd": 2.61, "period": "2014-2019"}, {"date": "2014-06-04", "price": 104.28, "ma5": 104.38, "iv": 17.4, "ivStd": 2.46, "period": "2014-2019"}, {"date": "2014-06-18", "price": 106.11, "ma5": 105.0, "iv": 16.6, "ivStd": 2.57, "period": "2014-2019"}, {"date": "2014-06-20", "price": 106.8, "ma5": 105.73, "iv": 16.2, "ivStd": 2.5, "period": "2014-2019"}, {"date": "2014-07-02", "price": 105.0, "ma5": 105.97, "iv": 17.4, "ivStd": 2.65, "period": "2014-2019"}, {"date": "2014-07-16", "price": 101.44, "ma5": 104.41, "iv": 19.7, "ivStd": 3.41, "period": "2014-2019"}, {"date": "2014-07-18", "price": 101.37, "ma5": 102.6, "iv": 20.1, "ivStd": 3.08, "period": "2014-2019"}, {"date": "2014-07-30", "price": 97.87, "ma5": 100.23, "iv": 21.9, "ivStd": 3.59, "period": "2014-2019"}, {"date": "2014-08-13", "price": 95.83, "ma5": 98.36, "iv": 23.4, "ivStd": 3.83, "period": "2014-2019"}, {"date": "2014-08-27", "price": 92.9, "ma5": 95.53, "iv": 25.2, "ivStd": 4.11, "period": "2014-2019"}, {"date": "2014-09-10", "price": 88.37, "ma5": 92.37, "iv": 28.1, "ivStd": 4.81, "period": "2014-2019"}, {"date": "2014-09-24", "price": 85.27, "ma5": 88.85, "iv": 30.1, "ivStd": 5.0, "period": "2014-2019"}, {"date": "2014-10-08", "price": 83.88, "ma5": 85.84, "iv": 31.1, "ivStd": 4.79, "period": "2014-2019"}, {"date": "2014-10-15", "price": 81.8, "ma5": 83.65, "iv": 32.4, "ivStd": 4.94, "period": "2014-2019"}, {"date": "2014-10-22", "price": 80.0, "ma5": 81.89, "iv": 33.6, "ivStd": 5.12, "period": "2014-2019"}, {"date": "2014-11-05", "price": 73.82, "ma5": 78.54, "iv": 37.4, "ivStd": 6.27, "period": "2014-2019"}, {"date": "2014-11-19", "price": 69.04, "ma5": 74.29, "iv": 40.5, "ivStd": 6.83, "period": "2014-2019"}, {"date": "2014-12-03", "price": 64.63, "ma5": 69.16, "iv": 43.3, "ivStd": 7.06, "period": "2014-2019"}, {"date": "2014-12-17", "price": 58.43, "ma5": 64.03, "iv": 47.1, "ivStd": 7.83, "period": "2014-2019"}, {"date": "2014-12-31", "price": 52.46, "ma5": 58.51, "iv": 50.9, "ivStd": 8.46, "period": "2014-2019"}, {"date": "2015-01-14", "price": 48.7, "ma5": 53.2, "iv": 53.3, "ivStd": 8.45, "period": "2014-2019"}, {"date": "2015-01-20", "price": 46.4, "ma5": 49.19, "iv": 54.8, "ivStd": 8.29, "period": "2014-2019"}, {"date": "2015-01-28", "price": 48.43, "ma5": 47.84, "iv": 52.7, "ivStd": 7.51, "period": "2014-2019"}, {"date": "2015-02-11", "price": 49.0, "ma5": 47.94, "iv": 50.8, "ivStd": 7.35, "period": "2014-2019"}, {"date": "2015-02-17", "price": 51.29, "ma5": 49.57, "iv": 49.8, "ivStd": 7.35, "period": "2014-2019"}, {"date": "2015-02-25", "price": 50.12, "ma5": 50.14, "iv": 48.6, "ivStd": 6.81, "period": "2014-2019"}, {"date": "2015-03-11", "price": 52.62, "ma5": 51.34, "iv": 45.5, "ivStd": 6.65, "period": "2014-2019"}, {"date": "2015-03-25", "price": 53.93, "ma5": 52.22, "iv": 43.2, "ivStd": 6.42, "period": "2014-2019"}, {"date": "2015-04-08", "price": 54.32, "ma5": 53.62, "iv": 41.5, "ivStd": 5.96, "period": "2014-2019"}, {"date": "2015-04-22", "price": 56.61, "ma5": 54.95, "iv": 38.5, "ivStd": 5.76, "period": "2014-2019"}, {"date": "2015-05-06", "price": 59.78, "ma5": 56.9, "iv": 35.0, "ivStd": 5.53, "period": "2014-2019"}, {"date": "2015-05-15", "price": 59.7, "ma5": 58.7, "iv": 34.1, "ivStd": 4.99, "period": "2014-2019"}, {"date": "2015-05-20", "price": 59.25, "ma5": 59.58, "iv": 34.5, "ivStd": 4.9, "period": "2014-2019"}, {"date": "2015-06-03", "price": 55.06, "ma5": 58.0, "iv": 37.4, "ivStd": 5.88, "period": "2014-2019"}, {"date": "2015-06-12", "price": 57.42, "ma5": 57.24, "iv": 38.4, "ivStd": 5.42, "period": "2014-2019"}, {"date": "2015-06-17", "price": 52.6, "ma5": 55.03, "iv": 39.1, "ivStd": 6.01, "period": "2014-2019"}, {"date": "2015-07-01", "price": 50.11, "ma5": 53.38, "iv": 41.1, "ivStd": 6.47, "period": "2014-2019"}, {"date": "2015-07-15", "price": 46.05, "ma5": 49.59, "iv": 43.8, "ivStd": 6.91, "period": "2014-2019"}, {"date": "2015-07-29", "price": 42.91, "ma5": 46.36, "iv": 46.0, "ivStd": 7.2, "period": "2014-2019"}, {"date": "2015-08-12", "price": 41.53, "ma5": 43.5, "iv": 47.2, "ivStd": 7.04, "period": "2014-2019"}, {"date": "2015-08-24", "price": 38.2, "ma5": 40.88, "iv": 49.5, "ivStd": 7.52, "period": "2014-2019"}, {"date": "2015-08-26", "price": 39.44, "ma5": 39.72, "iv": 48.6, "ivStd": 6.87, "period": "2014-2019"}, {"date": "2015-09-09", "price": 39.04, "ma5": 38.89, "iv": 48.0, "ivStd": 6.75, "period": "2014-2019"}, {"date": "2015-09-18", "price": 43.49, "ma5": 40.66, "iv": 46.8, "ivStd": 7.17, "period": "2014-2019"}, {"date": "2015-09-23", "price": 39.89, "ma5": 40.81, "iv": 46.6, "ivStd": 6.73, "period": "2014-2019"}, {"date": "2015-10-07", "price": 41.91, "ma5": 41.76, "iv": 44.5, "ivStd": 6.26, "period": "2014-2019"}, {"date": "2015-10-21", "price": 42.56, "ma5": 41.45, "iv": 43.3, "ivStd": 6.31, "period": "2014-2019"}, {"date": "2015-11-04", "price": 42.86, "ma5": 42.44, "iv": 42.2, "ivStd": 6.0, "period": "2014-2019"}, {"date": "2015-11-10", "price": 44.2, "ma5": 43.21, "iv": 41.0, "ivStd": 5.96, "period": "2014-2019"}, {"date": "2015-11-18", "price": 42.9, "ma5": 43.32, "iv": 43.2, "ivStd": 6.14, "period": "2014-2019"}, {"date": "2015-12-02", "price": 41.24, "ma5": 42.78, "iv": 46.7, "ivStd": 6.88, "period": "2014-2019"}, {"date": "2015-12-16", "price": 37.32, "ma5": 40.49, "iv": 51.5, "ivStd": 7.91, "period": "2014-2019"}, {"date": "2015-12-30", "price": 33.56, "ma5": 37.37, "iv": 56.3, "ivStd": 8.72, "period": "2014-2019"}, {"date": "2016-01-13", "price": 31.74, "ma5": 34.21, "iv": 59.9, "ivStd": 8.93, "period": "2014-2019"}, {"date": "2016-01-27", "price": 29.44, "ma5": 31.58, "iv": 63.8, "ivStd": 9.4, "period": "2014-2019"}, {"date": "2016-02-10", "price": 25.8, "ma5": 28.99, "iv": 68.5, "ivStd": 10.29, "period": "2014-2019"}, {"date": "2016-02-11", "price": 26.2, "ma5": 27.15, "iv": 68.4, "ivStd": 9.79, "period": "2014-2019"}, {"date": "2016-02-24", "price": 28.7, "ma5": 26.9, "iv": 65.0, "ivStd": 9.5, "period": "2014-2019"}, {"date": "2016-03-09", "price": 33.06, "ma5": 29.32, "iv": 60.2, "ivStd": 9.25, "period": "2014-2019"}, {"date": "2016-03-11", "price": 33.49, "ma5": 31.75, "iv": 60.4, "ivStd": 8.84, "period": "2014-2019"}, {"date": "2016-03-23", "price": 35.52, "ma5": 34.02, "iv": 56.7, "ivStd": 8.27, "period": "2014-2019"}, {"date": "2016-04-06", "price": 36.89, "ma5": 35.3, "iv": 53.8, "ivStd": 7.88, "period": "2014-2019"}, {"date": "2016-04-20", "price": 40.2, "ma5": 37.54, "iv": 49.7, "ivStd": 7.54, "period": "2014-2019"}, {"date": "2016-05-04", "price": 44.25, "ma5": 40.45, "iv": 45.2, "ivStd": 7.16, "period": "2014-2019"}, {"date": "2016-05-18", "price": 46.69, "ma5": 43.71, "iv": 41.6, "ivStd": 6.48, "period": "2014-2019"}, {"date": "2016-06-01", "price": 49.21, "ma5": 46.72, "iv": 38.0, "ivStd": 5.87, "period": "2014-2019"}, {"date": "2016-06-08", "price": 51.2, "ma5": 49.03, "iv": 35.8, "ivStd": 5.49, "period": "2014-2019"}, {"date": "2016-06-15", "price": 50.58, "ma5": 50.33, "iv": 35.8, "ivStd": 5.07, "period": "2014-2019"}, {"date": "2016-06-29", "price": 48.3, "ma5": 50.03, "iv": 36.5, "ivStd": 5.49, "period": "2014-2019"}, {"date": "2016-07-06", "price": 46.5, "ma5": 48.46, "iv": 37.5, "ivStd": 5.68, "period": "2014-2019"}, {"date": "2016-07-13", "price": 44.09, "ma5": 46.3, "iv": 38.3, "ivStd": 5.85, "period": "2014-2019"}, {"date": "2016-07-27", "price": 41.0, "ma5": 43.86, "iv": 39.5, "ivStd": 6.16, "period": "2014-2019"}, {"date": "2016-08-03", "price": 40.8, "ma5": 41.96, "iv": 39.2, "ivStd": 5.74, "period": "2014-2019"}, {"date": "2016-08-10", "price": 41.68, "ma5": 41.16, "iv": 38.7, "ivStd": 5.53, "period": "2014-2019"}, {"date": "2016-08-24", "price": 43.2, "ma5": 41.89, "iv": 37.7, "ivStd": 5.57, "period": "2014-2019"}, {"date": "2016-08-31", "price": 45.29, "ma5": 43.39, "iv": 37.6, "ivStd": 5.68, "period": "2014-2019"}, {"date": "2016-09-07", "price": 43.6, "ma5": 44.03, "iv": 37.3, "ivStd": 5.32, "period": "2014-2019"}, {"date": "2016-09-21", "price": 45.42, "ma5": 44.77, "iv": 36.2, "ivStd": 5.21, "period": "2014-2019"}, {"date": "2016-10-05", "price": 47.61, "ma5": 45.54, "iv": 34.9, "ivStd": 5.34, "period": "2014-2019"}, {"date": "2016-10-19", "price": 47.78, "ma5": 46.94, "iv": 34.7, "ivStd": 5.04, "period": "2014-2019"}, {"date": "2016-11-02", "price": 47.86, "ma5": 47.75, "iv": 34.7, "ivStd": 4.88, "period": "2014-2019"}, {"date": "2016-11-16", "price": 50.17, "ma5": 48.6, "iv": 33.1, "ivStd": 4.98, "period": "2014-2019"}, {"date": "2016-11-30", "price": 52.5, "ma5": 50.18, "iv": 31.7, "ivStd": 4.95, "period": "2014-2019"}, {"date": "2016-12-12", "price": 52.8, "ma5": 51.82, "iv": 31.5, "ivStd": 4.63, "period": "2014-2019"}, {"date": "2016-12-14", "price": 52.86, "ma5": 52.72, "iv": 31.3, "ivStd": 4.41, "period": "2014-2019"}, {"date": "2016-12-28", "price": 52.88, "ma5": 52.85, "iv": 30.2, "ivStd": 4.23, "period": "2014-2019"}, {"date": "2017-01-10", "price": 56.69, "ma5": 54.14, "iv": 28.8, "ivStd": 4.59, "period": "2014-2019"}, {"date": "2017-01-11", "price": 54.23, "ma5": 54.6, "iv": 28.3, "ivStd": 4.04, "period": "2014-2019"}, {"date": "2017-01-25", "price": 54.24, "ma5": 55.05, "iv": 27.0, "ivStd": 3.96, "period": "2014-2019"}, {"date": "2017-02-08", "price": 53.04, "ma5": 53.84, "iv": 26.7, "ivStd": 3.91, "period": "2014-2019"}, {"date": "2017-02-22", "price": 53.69, "ma5": 53.66, "iv": 25.2, "ivStd": 3.53, "period": "2014-2019"}, {"date": "2017-02-23", "price": 54.5, "ma5": 53.74, "iv": 24.6, "ivStd": 3.61, "period": "2014-2019"}, {"date": "2017-03-08", "price": 53.95, "ma5": 54.05, "iv": 24.8, "ivStd": 3.49, "period": "2014-2019"}, {"date": "2017-03-22", "price": 48.2, "ma5": 52.22, "iv": 26.0, "ivStd": 4.52, "period": "2014-2019"}, {"date": "2017-04-05", "price": 49.93, "ma5": 50.69, "iv": 27.0, "ivStd": 3.95, "period": "2014-2019"}, {"date": "2017-04-19", "price": 49.1, "ma5": 49.08, "iv": 27.4, "ivStd": 3.84, "period": "2014-2019"}, {"date": "2017-05-03", "price": 48.14, "ma5": 49.06, "iv": 27.8, "ivStd": 4.09, "period": "2014-2019"}, {"date": "2017-05-17", "price": 45.42, "ma5": 47.55, "iv": 29.4, "ivStd": 4.58, "period": "2014-2019"}, {"date": "2017-05-31", "price": 43.49, "ma5": 45.68, "iv": 30.4, "ivStd": 4.74, "period": "2014-2019"}, {"date": "2017-06-14", "price": 43.62, "ma5": 44.18, "iv": 30.2, "ivStd": 4.35, "period": "2014-2019"}, {"date": "2017-06-21", "price": 42.5, "ma5": 43.2, "iv": 30.8, "ivStd": 4.47, "period": "2014-2019"}, {"date": "2017-06-28", "price": 44.27, "ma5": 43.46, "iv": 29.8, "ivStd": 4.35, "period": "2014-2019"}, {"date": "2017-07-12", "price": 44.56, "ma5": 43.78, "iv": 29.8, "ivStd": 4.34, "period": "2014-2019"}, {"date": "2017-07-20", "price": 46.49, "ma5": 45.11, "iv": 29.2, "ivStd": 4.39, "period": "2014-2019"}, {"date": "2017-07-26", "price": 45.84, "ma5": 45.63, "iv": 29.1, "ivStd": 4.12, "period": "2014-2019"}, {"date": "2017-08-09", "price": 48.18, "ma5": 46.84, "iv": 27.9, "ivStd": 4.2, "period": "2014-2019"}, {"date": "2017-08-23", "price": 49.03, "ma5": 47.68, "iv": 27.5, "ivStd": 4.15, "period": "2014-2019"}, {"date": "2017-09-06", "price": 49.43, "ma5": 48.88, "iv": 27.4, "ivStd": 3.96, "period": "2014-2019"}, {"date": "2017-09-20", "price": 51.94, "ma5": 50.13, "iv": 26.0, "ivStd": 4.04, "period": "2014-2019"}, {"date": "2017-10-04", "price": 54.74, "ma5": 52.04, "iv": 24.4, "ivStd": 4.01, "period": "2014-2019"}, {"date": "2017-10-18", "price": 55.37, "ma5": 54.02, "iv": 24.2, "ivStd": 3.68, "period": "2014-2019"}, {"date": "2017-11-01", "price": 55.84, "ma5": 55.32, "iv": 24.0, "ivStd": 3.47, "period": "2014-2019"}, {"date": "2017-11-15", "price": 58.04, "ma5": 56.42, "iv": 22.8, "ivStd": 3.55, "period": "2014-2019"}, {"date": "2017-11-24", "price": 58.9, "ma5": 57.59, "iv": 22.4, "ivStd": 3.42, "period": "2014-2019"}, {"date": "2017-11-29", "price": 59.74, "ma5": 58.89, "iv": 22.2, "ivStd": 3.3, "period": "2014-2019"}, {"date": "2017-12-13", "price": 60.09, "ma5": 59.58, "iv": 22.7, "ivStd": 3.29, "period": "2014-2019"}, {"date": "2017-12-22", "price": 63.19, "ma5": 61.01, "iv": 22.1, "ivStd": 3.57, "period": "2014-2019"}, {"date": "2017-12-27", "price": 61.79, "ma5": 61.69, "iv": 22.5, "ivStd": 3.17, "period": "2014-2019"}, {"date": "2018-01-10", "price": 64.91, "ma5": 63.3, "iv": 21.3, "ivStd": 3.34, "period": "2014-2019"}, {"date": "2018-01-24", "price": 66.29, "ma5": 64.33, "iv": 21.3, "ivStd": 3.41, "period": "2014-2019"}, {"date": "2018-01-25", "price": 65.5, "ma5": 65.57, "iv": 21.8, "ivStd": 3.07, "period": "2014-2019"}, {"date": "2018-02-07", "price": 65.65, "ma5": 65.81, "iv": 22.6, "ivStd": 3.2, "period": "2014-2019"}, {"date": "2018-02-21", "price": 66.58, "ma5": 65.91, "iv": 22.9, "ivStd": 3.35, "period": "2014-2019"}, {"date": "2018-02-22", "price": 69.19, "ma5": 67.14, "iv": 22.7, "ivStd": 3.63, "period": "2014-2019"}, {"date": "2018-03-07", "price": 68.24, "ma5": 68.0, "iv": 22.9, "ivStd": 3.26, "period": "2014-2019"}, {"date": "2018-03-21", "price": 68.35, "ma5": 68.59, "iv": 23.7, "ivStd": 3.37, "period": "2014-2019"}, {"date": "2018-04-04", "price": 68.62, "ma5": 68.4, "iv": 24.4, "ivStd": 3.46, "period": "2014-2019"}, {"date": "2018-04-18", "price": 70.79, "ma5": 69.25, "iv": 24.1, "ivStd": 3.71, "period": "2014-2019"}, {"date": "2018-05-02", "price": 72.29, "ma5": 70.57, "iv": 24.1, "ivStd": 3.75, "period": "2014-2019"}, {"date": "2018-05-16", "price": 71.66, "ma5": 71.58, "iv": 25.3, "ivStd": 3.56, "period": "2014-2019"}, {"date": "2018-05-22", "price": 72.2, "ma5": 72.05, "iv": 25.4, "ivStd": 3.59, "period": "2014-2019"}, {"date": "2018-05-30", "price": 71.59, "ma5": 71.82, "iv": 25.9, "ivStd": 3.68, "period": "2014-2019"}, {"date": "2018-06-13", "price": 73.17, "ma5": 72.32, "iv": 25.1, "ivStd": 3.7, "period": "2014-2019"}, {"date": "2018-06-19", "price": 65.07, "ma5": 69.94, "iv": 25.1, "ivStd": 4.59, "period": "2014-2019"}, {"date": "2018-06-27", "price": 73.82, "ma5": 70.69, "iv": 24.9, "ivStd": 4.17, "period": "2014-2019"}, {"date": "2018-07-10", "price": 74.1, "ma5": 71.0, "iv": 24.9, "ivStd": 4.17, "period": "2014-2019"}, {"date": "2018-07-11", "price": 73.45, "ma5": 73.79, "iv": 25.3, "ivStd": 3.62, "period": "2014-2019"}, {"date": "2018-07-19", "price": 76.41, "ma5": 74.65, "iv": 25.1, "ivStd": 3.9, "period": "2014-2019"}, {"date": "2018-07-25", "price": 74.5, "ma5": 74.79, "iv": 25.2, "ivStd": 3.59, "period": "2014-2019"}, {"date": "2018-08-08", "price": 76.12, "ma5": 75.68, "iv": 24.8, "ivStd": 3.57, "period": "2014-2019"}, {"date": "2018-08-22", "price": 75.6, "ma5": 75.41, "iv": 25.7, "ivStd": 3.64, "period": "2014-2019"}, {"date": "2018-09-05", "price": 74.57, "ma5": 75.43, "iv": 26.8, "ivStd": 3.94, "period": "2014-2019"}, {"date": "2018-09-19", "price": 75.62, "ma5": 75.26, "iv": 26.7, "ivStd": 3.82, "period": "2014-2019"}, {"date": "2018-10-03", "price": 76.4, "ma5": 75.53, "iv": 26.8, "ivStd": 3.94, "period": "2014-2019"}, {"date": "2018-10-17", "price": 70.38, "ma5": 74.13, "iv": 31.9, "ivStd": 5.29, "period": "2014-2019"}, {"date": "2018-10-31", "price": 67.31, "ma5": 71.36, "iv": 36.8, "ivStd": 6.04, "period": "2014-2019"}, {"date": "2018-11-14", "price": 59.93, "ma5": 65.87, "iv": 41.4, "ivStd": 7.1, "period": "2014-2019"}, {"date": "2018-11-28", "price": 54.06, "ma5": 60.43, "iv": 46.4, "ivStd": 7.9, "period": "2014-2019"}, {"date": "2018-12-12", "price": 46.6, "ma5": 53.53, "iv": 52.4, "ivStd": 8.86, "period": "2014-2019"}, {"date": "2018-12-24", "price": 42.5, "ma5": 47.72, "iv": 56.2, "ivStd": 9.02, "period": "2014-2019"}, {"date": "2018-12-26", "price": 42.05, "ma5": 43.72, "iv": 55.9, "ivStd": 8.19, "period": "2014-2019"}, {"date": "2019-01-09", "price": 46.75, "ma5": 43.77, "iv": 48.9, "ivStd": 7.5, "period": "2014-2019"}, {"date": "2019-01-23", "price": 48.69, "ma5": 45.83, "iv": 43.1, "ivStd": 6.66, "period": "2014-2019"}, {"date": "2019-02-06", "price": 52.55, "ma5": 49.33, "iv": 37.4, "ivStd": 5.94, "period": "2014-2019"}, {"date": "2019-02-19", "price": 56.1, "ma5": 52.45, "iv": 31.4, "ivStd": 5.2, "period": "2014-2019"}, {"date": "2019-02-20", "price": 56.61, "ma5": 55.09, "iv": 31.1, "ivStd": 4.69, "period": "2014-2019"}, {"date": "2019-03-06", "price": 59.53, "ma5": 57.41, "iv": 29.4, "ivStd": 4.58, "period": "2014-2019"}, {"date": "2019-03-19", "price": 60.09, "ma5": 58.74, "iv": 28.9, "ivStd": 4.34, "period": "2014-2019"}, {"date": "2019-03-20", "price": 60.43, "ma5": 60.02, "iv": 29.0, "ivStd": 4.15, "period": "2014-2019"}, {"date": "2019-04-03", "price": 61.8, "ma5": 60.77, "iv": 28.3, "ivStd": 4.19, "period": "2014-2019"}, {"date": "2019-04-17", "price": 65.36, "ma5": 62.53, "iv": 26.2, "ivStd": 4.29, "period": "2014-2019"}, {"date": "2019-04-23", "price": 66.3, "ma5": 64.49, "iv": 25.7, "ivStd": 4.0, "period": "2014-2019"}, {"date": "2019-05-01", "price": 64.35, "ma5": 65.34, "iv": 27.3, "ivStd": 4.04, "period": "2014-2019"}, {"date": "2019-05-15", "price": 58.68, "ma5": 63.11, "iv": 31.5, "ivStd": 5.38, "period": "2014-2019"}, {"date": "2019-05-21", "price": 61.19, "ma5": 61.41, "iv": 32.9, "ivStd": 4.65, "period": "2014-2019"}, {"date": "2019-05-29", "price": 53.92, "ma5": 57.93, "iv": 35.1, "ivStd": 5.8, "period": "2014-2019"}, {"date": "2019-06-05", "price": 51.7, "ma5": 55.6, "iv": 36.8, "ivStd": 6.01, "period": "2014-2019"}, {"date": "2019-06-12", "price": 52.46, "ma5": 52.69, "iv": 36.1, "ivStd": 5.1, "period": "2014-2019"}, {"date": "2019-06-26", "price": 51.67, "ma5": 51.94, "iv": 36.2, "ivStd": 5.13, "period": "2014-2019"}, {"date": "2019-07-03", "price": 55.59, "ma5": 53.24, "iv": 36.1, "ivStd": 5.57, "period": "2014-2019"}, {"date": "2019-07-10", "price": 50.13, "ma5": 52.46, "iv": 36.6, "ivStd": 5.64, "period": "2014-2019"}, {"date": "2019-07-24", "price": 50.71, "ma5": 52.14, "iv": 35.9, "ivStd": 5.34, "period": "2014-2019"}, {"date": "2019-08-07", "price": 51.1, "ma5": 50.65, "iv": 35.2, "ivStd": 5.03, "period": "2014-2019"}, {"date": "2019-08-21", "price": 55.6, "ma5": 52.47, "iv": 38.3, "ivStd": 6.05, "period": "2014-2019"}, {"date": "2019-09-04", "price": 58.94, "ma5": 55.21, "iv": 42.0, "ivStd": 6.7, "period": "2014-2019"}, {"date": "2019-09-05", "price": 55.29, "ma5": 56.61, "iv": 41.9, "ivStd": 6.16, "period": "2014-2019"}, {"date": "2019-09-16", "price": 62.9, "ma5": 59.04, "iv": 44.5, "ivStd": 7.08, "period": "2014-2019"}, {"date": "2019-09-18", "price": 62.49, "ma5": 60.23, "iv": 43.3, "ivStd": 6.56, "period": "2014-2019"}, {"date": "2019-10-02", "price": 57.16, "ma5": 60.85, "iv": 36.6, "ivStd": 5.94, "period": "2014-2019"}, {"date": "2019-10-10", "price": 53.5, "ma5": 57.72, "iv": 33.1, "ivStd": 5.56, "period": "2014-2019"}, {"date": "2019-10-14", "price": 51.89, "ma5": 54.18, "iv": 32.8, "ivStd": 5.1, "period": "2014-2019"}, {"date": "2019-10-16", "price": 53.23, "ma5": 52.87, "iv": 33.1, "ivStd": 4.71, "period": "2014-2019"}, {"date": "2019-10-30", "price": 54.54, "ma5": 53.22, "iv": 32.0, "ivStd": 4.77, "period": "2014-2019"}, {"date": "2019-11-13", "price": 57.61, "ma5": 55.13, "iv": 29.9, "ivStd": 4.73, "period": "2014-2019"}, {"date": "2019-11-27", "price": 59.26, "ma5": 57.14, "iv": 28.6, "ivStd": 4.47, "period": "2014-2019"}, {"date": "2019-12-11", "price": 59.46, "ma5": 58.78, "iv": 28.2, "ivStd": 4.1, "period": "2014-2019"}, {"date": "2019-12-25", "price": 61.0, "ma5": 59.91, "iv": 26.9, "ivStd": 4.01, "period": "2014-2019"}, {"date": "2019-12-30", "price": 61.7, "ma5": 60.72, "iv": 26.4, "ivStd": 3.91, "period": "2014-2019"}, {"date": "2020-01-08", "price": 64.99, "ma5": 62.56, "iv": 31.8, "ivStd": 4.99, "period": "2020-2022"}, {"date": "2020-01-22", "price": 55.5, "ma5": 60.73, "iv": 45.0, "ivStd": 7.45, "period": "2020-2022"}, {"date": "2020-02-05", "price": 47.32, "ma5": 55.94, "iv": 58.5, "ivStd": 10.09, "period": "2020-2022"}, {"date": "2020-02-19", "price": 41.27, "ma5": 48.03, "iv": 70.7, "ivStd": 11.39, "period": "2020-2022"}, {"date": "2020-03-04", "price": 34.95, "ma5": 41.18, "iv": 83.2, "ivStd": 13.02, "period": "2020-2022"}, {"date": "2020-03-09", "price": 31.1, "ma5": 35.77, "iv": 88.5, "ivStd": 13.42, "period": "2020-2022"}, {"date": "2020-03-18", "price": 28.56, "ma5": 31.54, "iv": 98.8, "ivStd": 14.49, "period": "2020-2022"}, {"date": "2020-04-01", "price": 23.74, "ma5": 27.8, "iv": 115.4, "ivStd": 17.05, "period": "2020-2022"}, {"date": "2020-04-15", "price": 20.51, "ma5": 24.27, "iv": 131.0, "ivStd": 19.17, "period": "2020-2022"}, {"date": "2020-04-21", "price": 18.5, "ma5": 20.92, "iv": 138.0, "ivStd": 19.85, "period": "2020-2022"}, {"date": "2020-04-29", "price": 22.39, "ma5": 20.47, "iv": 123.7, "ivStd": 17.74, "period": "2020-2022"}, {"date": "2020-05-13", "price": 27.81, "ma5": 22.9, "iv": 99.6, "ivStd": 15.02, "period": "2020-2022"}, {"date": "2020-05-20", "price": 25.09, "ma5": 25.1, "iv": 86.6, "ivStd": 12.13, "period": "2020-2022"}, {"date": "2020-05-27", "price": 34.94, "ma5": 29.28, "iv": 74.4, "ivStd": 11.66, "period": "2020-2022"}, {"date": "2020-06-05", "price": 39.5, "ma5": 33.18, "iv": 58.2, "ivStd": 9.54, "period": "2020-2022"}, {"date": "2020-06-10", "price": 40.53, "ma5": 38.32, "iv": 56.7, "ivStd": 8.42, "period": "2020-2022"}, {"date": "2020-06-24", "price": 39.61, "ma5": 39.88, "iv": 54.9, "ivStd": 7.75, "period": "2020-2022"}, {"date": "2020-07-02", "price": 44.39, "ma5": 41.51, "iv": 54.0, "ivStd": 8.19, "period": "2020-2022"}, {"date": "2020-07-08", "price": 37.84, "ma5": 40.61, "iv": 53.5, "ivStd": 8.1, "period": "2020-2022"}, {"date": "2020-07-22", "price": 37.87, "ma5": 40.03, "iv": 51.1, "ivStd": 7.63, "period": "2020-2022"}, {"date": "2020-08-05", "price": 38.17, "ma5": 37.96, "iv": 48.6, "ivStd": 6.85, "period": "2020-2022"}, {"date": "2020-08-19", "price": 36.88, "ma5": 37.64, "iv": 46.9, "ivStd": 6.73, "period": "2020-2022"}, {"date": "2020-09-02", "price": 36.26, "ma5": 37.1, "iv": 44.8, "ivStd": 6.46, "period": "2020-2022"}, {"date": "2020-09-08", "price": 36.8, "ma5": 36.65, "iv": 43.5, "ivStd": 6.12, "period": "2020-2022"}, {"date": "2020-09-10", "price": 35.69, "ma5": 36.25, "iv": 43.7, "ivStd": 6.24, "period": "2020-2022"}, {"date": "2020-09-16", "price": 37.45, "ma5": 36.65, "iv": 43.8, "ivStd": 6.31, "period": "2020-2022"}, {"date": "2020-09-30", "price": 37.5, "ma5": 36.88, "iv": 45.0, "ivStd": 6.44, "period": "2020-2022"}, {"date": "2020-10-14", "price": 35.68, "ma5": 36.88, "iv": 47.3, "ivStd": 6.89, "period": "2020-2022"}, {"date": "2020-10-28", "price": 35.07, "ma5": 36.08, "iv": 48.9, "ivStd": 7.07, "period": "2020-2022"}, {"date": "2020-11-02", "price": 35.8, "ma5": 35.52, "iv": 48.9, "ivStd": 6.91, "period": "2020-2022"}, {"date": "2020-11-11", "price": 38.28, "ma5": 36.38, "iv": 46.9, "ivStd": 6.98, "period": "2020-2022"}, {"date": "2020-11-25", "price": 41.51, "ma5": 38.53, "iv": 44.3, "ivStd": 6.86, "period": "2020-2022"}, {"date": "2020-11-30", "price": 40.99, "ma5": 40.26, "iv": 43.3, "ivStd": 6.22, "period": "2020-2022"}, {"date": "2020-12-09", "price": 44.15, "ma5": 42.22, "iv": 41.8, "ivStd": 6.28, "period": "2020-2022"}, {"date": "2020-12-23", "price": 48.55, "ma5": 44.56, "iv": 38.4, "ivStd": 6.25, "period": "2020-2022"}, {"date": "2021-01-06", "price": 52.99, "ma5": 48.56, "iv": 35.0, "ivStd": 5.87, "period": "2020-2022"}, {"date": "2021-01-12", "price": 53.2, "ma5": 51.58, "iv": 34.6, "ivStd": 5.2, "period": "2020-2022"}, {"date": "2021-01-20", "price": 55.09, "ma5": 53.76, "iv": 34.7, "ivStd": 5.15, "period": "2020-2022"}, {"date": "2021-02-03", "price": 57.21, "ma5": 55.17, "iv": 35.5, "ivStd": 5.42, "period": "2020-2022"}, {"date": "2021-02-09", "price": 58.39, "ma5": 56.9, "iv": 34.9, "ivStd": 5.21, "period": "2020-2022"}, {"date": "2021-02-17", "price": 61.41, "ma5": 59.0, "iv": 35.1, "ivStd": 5.44, "period": "2020-2022"}, {"date": "2021-03-03", "price": 65.32, "ma5": 61.71, "iv": 34.8, "ivStd": 5.67, "period": "2020-2022"}, {"date": "2021-03-08", "price": 66.0, "ma5": 64.24, "iv": 35.2, "ivStd": 5.32, "period": "2020-2022"}, {"date": "2021-03-17", "price": 65.56, "ma5": 65.63, "iv": 35.0, "ivStd": 4.92, "period": "2020-2022"}, {"date": "2021-03-31", "price": 65.61, "ma5": 65.72, "iv": 34.2, "ivStd": 4.81, "period": "2020-2022"}, {"date": "2021-04-05", "price": 61.46, "ma5": 64.21, "iv": 33.9, "ivStd": 5.35, "period": "2020-2022"}, {"date": "2021-04-14", "price": 66.79, "ma5": 64.62, "iv": 32.8, "ivStd": 5.07, "period": "2020-2022"}, {"date": "2021-04-28", "price": 66.21, "ma5": 64.82, "iv": 32.5, "ivStd": 4.86, "period": "2020-2022"}, {"date": "2021-05-12", "price": 64.49, "ma5": 65.83, "iv": 32.7, "ivStd": 4.87, "period": "2020-2022"}, {"date": "2021-05-18", "price": 65.5, "ma5": 65.4, "iv": 31.8, "ivStd": 4.47, "period": "2020-2022"}, {"date": "2021-05-20", "price": 63.53, "ma5": 64.51, "iv": 31.9, "ivStd": 4.68, "period": "2020-2022"}, {"date": "2021-05-26", "price": 66.36, "ma5": 65.13, "iv": 32.5, "ivStd": 4.82, "period": "2020-2022"}, {"date": "2021-06-09", "price": 70.42, "ma5": 66.77, "iv": 32.2, "ivStd": 5.31, "period": "2020-2022"}, {"date": "2021-06-23", "price": 72.79, "ma5": 69.86, "iv": 32.9, "ivStd": 5.25, "period": "2020-2022"}, {"date": "2021-07-06", "price": 75.2, "ma5": 72.8, "iv": 33.4, "ivStd": 5.2, "period": "2020-2022"}, {"date": "2021-07-07", "price": 74.47, "ma5": 74.15, "iv": 33.8, "ivStd": 4.8, "period": "2020-2022"}, {"date": "2021-07-21", "price": 71.46, "ma5": 73.71, "iv": 34.9, "ivStd": 5.38, "period": "2020-2022"}, {"date": "2021-08-03", "price": 79.59, "ma5": 75.17, "iv": 36.8, "ivStd": 6.12, "period": "2020-2022"}, {"date": "2021-08-04", "price": 67.79, "ma5": 72.95, "iv": 36.4, "ivStd": 6.23, "period": "2020-2022"}, {"date": "2021-08-18", "price": 62.21, "ma5": 69.86, "iv": 39.1, "ivStd": 7.16, "period": "2020-2022"}, {"date": "2021-08-20", "price": 62.3, "ma5": 64.1, "iv": 38.9, "ivStd": 5.84, "period": "2020-2022"}, {"date": "2021-09-01", "price": 65.19, "ma5": 63.23, "iv": 39.0, "ivStd": 5.89, "period": "2020-2022"}, {"date": "2021-09-15", "price": 71.36, "ma5": 66.28, "iv": 37.5, "ivStd": 6.37, "period": "2020-2022"}, {"date": "2021-09-17", "price": 67.29, "ma5": 67.95, "iv": 37.6, "ivStd": 5.41, "period": "2020-2022"}, {"date": "2021-09-29", "price": 76.5, "ma5": 71.72, "iv": 36.6, "ivStd": 6.18, "period": "2020-2022"}, {"date": "2021-10-13", "price": 80.26, "ma5": 74.68, "iv": 36.6, "ivStd": 6.35, "period": "2020-2022"}, {"date": "2021-10-25", "price": 84.6, "ma5": 80.45, "iv": 35.8, "ivStd": 5.92, "period": "2020-2022"}, {"date": "2021-10-27", "price": 83.61, "ma5": 82.82, "iv": 36.7, "ivStd": 5.31, "period": "2020-2022"}, {"date": "2021-11-10", "price": 77.48, "ma5": 81.9, "iv": 42.3, "ivStd": 6.89, "period": "2020-2022"}, {"date": "2021-11-19", "price": 79.09, "ma5": 80.06, "iv": 46.7, "ivStd": 6.75, "period": "2020-2022"}, {"date": "2021-11-24", "price": 69.49, "ma5": 75.35, "iv": 49.0, "ivStd": 8.15, "period": "2020-2022"}, {"date": "2021-12-02", "price": 65.6, "ma5": 71.39, "iv": 52.4, "ivStd": 8.61, "period": "2020-2022"}, {"date": "2021-12-08", "price": 66.83, "ma5": 67.31, "iv": 51.1, "ivStd": 7.26, "period": "2020-2022"}, {"date": "2021-12-22", "price": 73.8, "ma5": 68.74, "iv": 45.6, "ivStd": 7.5, "period": "2020-2022"}, {"date": "2021-12-30", "price": 70.99, "ma5": 70.54, "iv": 42.7, "ivStd": 6.08, "period": "2020-2022"}, {"date": "2022-01-05", "price": 80.88, "ma5": 75.22, "iv": 40.1, "ivStd": 6.86, "period": "2020-2022"}, {"date": "2022-01-18", "price": 85.4, "ma5": 79.09, "iv": 36.2, "ivStd": 6.46, "period": "2020-2022"}, {"date": "2022-01-19", "price": 86.34, "ma5": 84.21, "iv": 36.9, "ivStd": 5.63, "period": "2020-2022"}, {"date": "2022-02-02", "price": 96.74, "ma5": 89.49, "iv": 48.1, "ivStd": 8.33, "period": "2020-2022"}, {"date": "2022-02-15", "price": 91.69, "ma5": 91.59, "iv": 58.1, "ivStd": 8.16, "period": "2020-2022"}, {"date": "2022-02-16", "price": 108.59, "ma5": 99.01, "iv": 58.6, "ivStd": 10.31, "period": "2020-2022"}, {"date": "2022-03-02", "price": 119.37, "ma5": 106.55, "iv": 69.6, "ivStd": 12.56, "period": "2020-2022"}, {"date": "2022-03-08", "price": 123.7, "ma5": 117.22, "iv": 74.5, "ivStd": 11.86, "period": "2020-2022"}, {"date": "2022-03-16", "price": 115.71, "ma5": 119.59, "iv": 69.1, "ivStd": 10.53, "period": "2020-2022"}, {"date": "2022-03-30", "price": 103.93, "ma5": 114.45, "iv": 58.6, "ivStd": 10.52, "period": "2020-2022"}, {"date": "2022-04-11", "price": 94.3, "ma5": 104.65, "iv": 49.2, "ivStd": 9.17, "period": "2020-2022"}, {"date": "2022-04-13", "price": 96.14, "ma5": 98.12, "iv": 48.6, "ivStd": 7.24, "period": "2020-2022"}, {"date": "2022-04-27", "price": 102.69, "ma5": 97.71, "iv": 48.1, "ivStd": 7.83, "period": "2020-2022"}, {"date": "2022-05-11", "price": 108.24, "ma5": 102.36, "iv": 48.3, "ivStd": 8.06, "period": "2020-2022"}, {"date": "2022-05-25", "price": 115.37, "ma5": 108.77, "iv": 47.4, "ivStd": 8.09, "period": "2020-2022"}, {"date": "2022-06-08", "price": 122.1, "ma5": 115.24, "iv": 46.8, "ivStd": 8.06, "period": "2020-2022"}, {"date": "2022-06-22", "price": 125.09, "ma5": 120.85, "iv": 47.3, "ivStd": 7.55, "period": "2020-2022"}, {"date": "2022-07-06", "price": 100.57, "ma5": 115.92, "iv": 48.4, "ivStd": 10.15, "period": "2020-2022"}, {"date": "2022-07-14", "price": 95.8, "ma5": 107.15, "iv": 48.1, "ivStd": 9.23, "period": "2020-2022"}, {"date": "2022-07-20", "price": 96.42, "ma5": 97.6, "iv": 47.4, "ivStd": 6.9, "period": "2020-2022"}, {"date": "2022-08-03", "price": 97.46, "ma5": 96.56, "iv": 45.9, "ivStd": 6.62, "period": "2020-2022"}, {"date": "2022-08-17", "price": 96.53, "ma5": 96.8, "iv": 45.7, "ivStd": 6.46, "period": "2020-2022"}, {"date": "2022-08-30", "price": 97.0, "ma5": 97.0, "iv": 44.6, "ivStd": 6.24, "period": "2020-2022"}, {"date": "2022-08-31", "price": 95.72, "ma5": 96.42, "iv": 45.0, "ivStd": 6.45, "period": "2020-2022"}, {"date": "2022-09-14", "price": 86.09, "ma5": 92.94, "iv": 45.8, "ivStd": 7.92, "period": "2020-2022"}, {"date": "2022-09-26", "price": 76.7, "ma5": 86.17, "iv": 47.2, "ivStd": 8.69, "period": "2020-2022"}, {"date": "2022-09-28", "price": 77.39, "ma5": 80.06, "iv": 46.9, "ivStd": 7.15, "period": "2020-2022"}, {"date": "2022-10-12", "price": 81.42, "ma5": 78.5, "iv": 45.6, "ivStd": 7.03, "period": "2020-2022"}, {"date": "2022-10-26", "price": 87.42, "ma5": 82.08, "iv": 43.1, "ivStd": 7.21, "period": "2020-2022"}, {"date": "2022-11-07", "price": 91.8, "ma5": 86.88, "iv": 41.5, "ivStd": 6.89, "period": "2020-2022"}, {"date": "2022-11-09", "price": 91.77, "ma5": 90.33, "iv": 40.8, "ivStd": 6.03, "period": "2020-2022"}, {"date": "2022-11-23", "price": 81.78, "ma5": 88.45, "iv": 42.4, "ivStd": 7.4, "period": "2020-2022"}, {"date": "2022-12-07", "price": 71.51, "ma5": 81.69, "iv": 44.2, "ivStd": 8.43, "period": "2020-2022"}, {"date": "2022-12-09", "price": 71.0, "ma5": 74.76, "iv": 43.8, "ivStd": 6.96, "period": "2020-2022"}, {"date": "2022-12-21", "price": 73.73, "ma5": 72.08, "iv": 42.1, "ivStd": 6.26, "period": "2020-2022"}, {"date": "2023-01-04", "price": 77.46, "ma5": 74.06, "iv": 39.6, "ivStd": 6.29, "period": "2023-2024"}, {"date": "2023-01-18", "price": 79.76, "ma5": 76.98, "iv": 38.1, "ivStd": 5.95, "period": "2023-2024"}, {"date": "2023-01-23", "price": 81.6, "ma5": 79.61, "iv": 36.9, "ivStd": 5.6, "period": "2023-2024"}, {"date": "2023-02-01", "price": 78.68, "ma5": 80.01, "iv": 38.7, "ivStd": 5.71, "period": "2023-2024"}, {"date": "2023-02-15", "price": 76.5, "ma5": 78.93, "iv": 40.2, "ivStd": 6.16, "period": "2023-2024"}, {"date": "2023-03-01", "price": 72.66, "ma5": 75.95, "iv": 42.7, "ivStd": 6.7, "period": "2023-2024"}, {"date": "2023-03-15", "price": 67.34, "ma5": 72.17, "iv": 46.0, "ivStd": 7.5, "period": "2023-2024"}, {"date": "2023-03-20", "price": 66.7, "ma5": 68.9, "iv": 46.5, "ivStd": 6.99, "period": "2023-2024"}, {"date": "2023-03-29", "price": 72.5, "ma5": 68.85, "iv": 41.8, "ivStd": 6.66, "period": "2023-2024"}, {"date": "2023-04-12", "price": 83.2, "ma5": 74.13, "iv": 33.4, "ivStd": 6.67, "period": "2023-2024"}, {"date": "2023-04-17", "price": 71.19, "ma5": 75.63, "iv": 34.9, "ivStd": 5.86, "period": "2023-2024"}, {"date": "2023-04-26", "price": 73.8, "ma5": 76.06, "iv": 37.6, "ivStd": 5.76, "period": "2023-2024"}, {"date": "2023-05-04", "price": 68.6, "ma5": 71.2, "iv": 39.8, "ivStd": 6.14, "period": "2023-2024"}, {"date": "2023-05-10", "price": 67.68, "ma5": 70.03, "iv": 39.5, "ivStd": 6.05, "period": "2023-2024"}, {"date": "2023-05-24", "price": 68.35, "ma5": 68.21, "iv": 37.1, "ivStd": 5.22, "period": "2023-2024"}, {"date": "2023-06-02", "price": 70.97, "ma5": 69.0, "iv": 36.4, "ivStd": 5.53, "period": "2023-2024"}, {"date": "2023-06-07", "price": 68.49, "ma5": 69.27, "iv": 35.1, "ivStd": 5.09, "period": "2023-2024"}, {"date": "2023-06-12", "price": 67.1, "ma5": 68.85, "iv": 35.2, "ivStd": 5.31, "period": "2023-2024"}, {"date": "2023-06-13", "price": 65.08, "ma5": 66.89, "iv": 35.1, "ivStd": 5.31, "period": "2023-2024"}, {"date": "2023-06-21", "price": 69.65, "ma5": 67.28, "iv": 34.1, "ivStd": 5.3, "period": "2023-2024"}, {"date": "2023-07-05", "price": 73.22, "ma5": 69.32, "iv": 32.4, "ivStd": 5.39, "period": "2023-2024"}, {"date": "2023-07-13", "price": 76.8, "ma5": 73.22, "iv": 30.6, "ivStd": 5.07, "period": "2023-2024"}, {"date": "2023-07-19", "price": 78.17, "ma5": 76.06, "iv": 30.5, "ivStd": 4.73, "period": "2023-2024"}, {"date": "2023-08-02", "price": 81.58, "ma5": 78.85, "iv": 30.2, "ivStd": 4.83, "period": "2023-2024"}, {"date": "2023-08-10", "price": 81.09, "ma5": 80.28, "iv": 30.3, "ivStd": 4.42, "period": "2023-2024"}, {"date": "2023-08-16", "price": 83.77, "ma5": 82.15, "iv": 30.5, "ivStd": 4.63, "period": "2023-2024"}, {"date": "2023-08-30", "price": 87.32, "ma5": 84.06, "iv": 30.1, "ivStd": 4.93, "period": "2023-2024"}, {"date": "2023-09-13", "price": 91.55, "ma5": 87.55, "iv": 29.3, "ivStd": 4.98, "period": "2023-2024"}, {"date": "2023-09-27", "price": 93.76, "ma5": 90.88, "iv": 29.6, "ivStd": 4.78, "period": "2023-2024"}, {"date": "2023-09-28", "price": 93.7, "ma5": 93.0, "iv": 29.8, "ivStd": 4.33, "period": "2023-2024"}, {"date": "2023-10-11", "price": 89.63, "ma5": 92.36, "iv": 34.4, "ivStd": 5.42, "period": "2023-2024"}, {"date": "2023-10-20", "price": 88.8, "ma5": 90.71, "iv": 36.4, "ivStd": 5.52, "period": "2023-2024"}, {"date": "2023-10-25", "price": 86.45, "ma5": 88.29, "iv": 36.6, "ivStd": 5.53, "period": "2023-2024"}, {"date": "2023-10-26", "price": 89.81, "ma5": 88.35, "iv": 36.2, "ivStd": 5.39, "period": "2023-2024"}, {"date": "2023-11-08", "price": 82.32, "ma5": 86.19, "iv": 35.4, "ivStd": 5.81, "period": "2023-2024"}, {"date": "2023-11-22", "price": 76.45, "ma5": 82.86, "iv": 35.4, "ivStd": 6.37, "period": "2023-2024"}, {"date": "2023-12-06", "price": 70.85, "ma5": 76.54, "iv": 35.2, "ivStd": 6.18, "period": "2023-2024"}, {"date": "2023-12-13", "price": 68.6, "ma5": 71.97, "iv": 34.8, "ivStd": 5.61, "period": "2023-2024"}, {"date": "2023-12-20", "price": 70.76, "ma5": 70.07, "iv": 33.8, "ivStd": 4.88, "period": "2023-2024"}, {"date": "2024-01-03", "price": 73.52, "ma5": 70.96, "iv": 32.9, "ivStd": 5.17, "period": "2023-2024"}, {"date": "2024-01-17", "price": 74.69, "ma5": 72.99, "iv": 32.8, "ivStd": 4.97, "period": "2023-2024"}, {"date": "2024-01-29", "price": 78.0, "ma5": 75.4, "iv": 31.5, "ivStd": 4.98, "period": "2023-2024"}, {"date": "2024-01-31", "price": 77.22, "ma5": 76.64, "iv": 32.1, "ivStd": 4.62, "period": "2023-2024"}, {"date": "2024-02-14", "price": 80.14, "ma5": 78.45, "iv": 31.1, "ivStd": 4.73, "period": "2023-2024"}, {"date": "2024-02-26", "price": 80.9, "ma5": 79.42, "iv": 31.4, "ivStd": 4.72, "period": "2023-2024"}, {"date": "2024-02-28", "price": 81.63, "ma5": 80.89, "iv": 31.1, "ivStd": 4.52, "period": "2023-2024"}, {"date": "2024-03-13", "price": 82.15, "ma5": 81.56, "iv": 31.5, "ivStd": 4.54, "period": "2023-2024"}, {"date": "2024-03-27", "price": 84.16, "ma5": 82.65, "iv": 31.2, "ivStd": 4.7, "period": "2023-2024"}, {"date": "2024-04-10", "price": 86.25, "ma5": 84.19, "iv": 30.7, "ivStd": 4.75, "period": "2023-2024"}, {"date": "2024-04-12", "price": 85.6, "ma5": 85.34, "iv": 31.2, "ivStd": 4.43, "period": "2023-2024"}, {"date": "2024-04-24", "price": 82.39, "ma5": 84.75, "iv": 30.9, "ivStd": 4.85, "period": "2023-2024"}, {"date": "2024-04-29", "price": 87.31, "ma5": 85.1, "iv": 30.5, "ivStd": 4.76, "period": "2023-2024"}, {"date": "2024-05-08", "price": 78.25, "ma5": 82.65, "iv": 30.9, "ivStd": 5.29, "period": "2023-2024"}, {"date": "2024-05-22", "price": 76.31, "ma5": 80.62, "iv": 29.5, "ivStd": 5.08, "period": "2023-2024"}, {"date": "2024-06-04", "price": 73.2, "ma5": 75.92, "iv": 28.9, "ivStd": 4.64, "period": "2023-2024"}, {"date": "2024-06-05", "price": 70.99, "ma5": 73.5, "iv": 28.8, "ivStd": 4.58, "period": "2023-2024"}, {"date": "2024-06-19", "price": 78.35, "ma5": 74.18, "iv": 27.7, "ivStd": 4.8, "period": "2023-2024"}, {"date": "2024-07-03", "price": 82.92, "ma5": 77.42, "iv": 26.8, "ivStd": 4.96, "period": "2023-2024"}, {"date": "2024-07-05", "price": 83.9, "ma5": 81.72, "iv": 26.4, "ivStd": 4.18, "period": "2023-2024"}, {"date": "2024-07-17", "price": 80.28, "ma5": 82.37, "iv": 29.0, "ivStd": 4.52, "period": "2023-2024"}, {"date": "2024-07-25", "price": 86.19, "ma5": 83.46, "iv": 31.4, "ivStd": 5.0, "period": "2023-2024"}, {"date": "2024-07-31", "price": 74.8, "ma5": 80.42, "iv": 32.8, "ivStd": 5.83, "period": "2023-2024"}, {"date": "2024-08-05", "price": 72.9, "ma5": 77.96, "iv": 34.2, "ivStd": 5.9, "period": "2023-2024"}, {"date": "2024-08-14", "price": 69.92, "ma5": 72.54, "iv": 35.8, "ivStd": 5.59, "period": "2023-2024"}, {"date": "2024-08-28", "price": 67.88, "ma5": 70.23, "iv": 36.7, "ivStd": 5.66, "period": "2023-2024"}, {"date": "2024-09-10", "price": 65.8, "ma5": 67.87, "iv": 37.6, "ivStd": 5.72, "period": "2023-2024"}, {"date": "2024-09-11", "price": 67.22, "ma5": 66.97, "iv": 37.2, "ivStd": 5.26, "period": "2023-2024"}, {"date": "2024-09-25", "price": 72.36, "ma5": 68.46, "iv": 40.1, "ivStd": 6.47, "period": "2023-2024"}, {"date": "2024-10-08", "price": 68.39, "ma5": 69.32, "iv": 42.8, "ivStd": 6.2, "period": "2023-2024"}, {"date": "2024-10-09", "price": 76.35, "ma5": 72.37, "iv": 42.9, "ivStd": 6.88, "period": "2023-2024"}, {"date": "2024-10-23", "price": 73.55, "ma5": 72.76, "iv": 39.3, "ivStd": 5.68, "period": "2023-2024"}, {"date": "2024-11-06", "price": 70.42, "ma5": 73.44, "iv": 35.9, "ivStd": 5.69, "period": "2023-2024"}, {"date": "2024-11-18", "price": 67.0, "ma5": 70.32, "iv": 33.5, "ivStd": 5.42, "period": "2023-2024"}, {"date": "2024-11-20", "price": 66.65, "ma5": 68.02, "iv": 34.0, "ivStd": 5.06, "period": "2023-2024"}, {"date": "2024-12-04", "price": 69.68, "ma5": 67.78, "iv": 34.4, "ivStd": 5.23, "period": "2023-2024"}, {"date": "2024-12-18", "price": 74.46, "ma5": 70.26, "iv": 33.8, "ivStd": 5.66, "period": "2023-2024"}, {"date": "2025-01-01", "price": 77.88, "ma5": 74.01, "iv": 33.9, "ivStd": 5.6, "period": "2025-2026"}, {"date": "2025-01-15", "price": 80.0, "ma5": 77.45, "iv": 34.8, "ivStd": 5.43, "period": "2025-2026"}, {"date": "2025-01-29", "price": 76.67, "ma5": 78.18, "iv": 33.2, "ivStd": 4.98, "period": "2025-2026"}, {"date": "2025-02-12", "price": 72.77, "ma5": 76.48, "iv": 31.2, "ivStd": 5.18, "period": "2025-2026"}, {"date": "2025-02-20", "price": 72.5, "ma5": 73.98, "iv": 30.2, "ivStd": 4.55, "period": "2025-2026"}, {"date": "2025-02-26", "price": 70.79, "ma5": 72.02, "iv": 32.3, "ivStd": 4.79, "period": "2025-2026"}, {"date": "2025-03-12", "price": 66.59, "ma5": 69.96, "iv": 37.5, "ivStd": 5.99, "period": "2025-2026"}, {"date": "2025-03-19", "price": 76.79, "ma5": 71.39, "iv": 39.2, "ivStd": 6.68, "period": "2025-2026"}, {"date": "2025-03-26", "price": 64.43, "ma5": 69.27, "iv": 41.4, "ivStd": 6.86, "period": "2025-2026"}, {"date": "2025-04-04", "price": 62.0, "ma5": 67.74, "iv": 44.5, "ivStd": 7.49, "period": "2025-2026"}, {"date": "2025-04-09", "price": 64.26, "ma5": 63.56, "iv": 42.3, "ivStd": 6.08, "period": "2025-2026"}, {"date": "2025-04-23", "price": 65.8, "ma5": 64.02, "iv": 39.2, "ivStd": 5.88, "period": "2025-2026"}, {"date": "2025-05-02", "price": 68.49, "ma5": 66.18, "iv": 36.9, "ivStd": 5.67, "period": "2025-2026"}, {"date": "2025-05-07", "price": 67.65, "ma5": 67.31, "iv": 36.0, "ivStd": 5.11, "period": "2025-2026"}, {"date": "2025-05-14", "price": 69.8, "ma5": 68.65, "iv": 33.6, "ivStd": 4.96, "period": "2025-2026"}, {"date": "2025-05-21", "price": 71.91, "ma5": 69.79, "iv": 34.6, "ivStd": 5.31, "period": "2025-2026"}, {"date": "2025-06-04", "price": 76.12, "ma5": 72.61, "iv": 36.4, "ivStd": 5.87, "period": "2025-2026"}, {"date": "2025-06-11", "price": 74.79, "ma5": 74.27, "iv": 37.5, "ivStd": 5.36, "period": "2025-2026"}, {"date": "2025-06-18", "price": 79.16, "ma5": 76.69, "iv": 39.0, "ivStd": 6.0, "period": "2025-2026"}, {"date": "2025-06-23", "price": 81.4, "ma5": 78.45, "iv": 39.2, "ivStd": 6.14, "period": "2025-2026"}, {"date": "2025-07-02", "price": 79.55, "ma5": 80.04, "iv": 37.9, "ivStd": 5.41, "period": "2025-2026"}, {"date": "2025-07-03", "price": 83.42, "ma5": 81.46, "iv": 37.6, "ivStd": 5.7, "period": "2025-2026"}, {"date": "2025-07-16", "price": 78.6, "ma5": 80.52, "iv": 34.7, "ivStd": 5.28, "period": "2025-2026"}, {"date": "2025-07-30", "price": 75.64, "ma5": 79.22, "iv": 32.7, "ivStd": 5.37, "period": "2025-2026"}, {"date": "2025-08-07", "price": 73.6, "ma5": 75.95, "iv": 31.8, "ivStd": 4.97, "period": "2025-2026"}, {"date": "2025-08-13", "price": 72.07, "ma5": 73.77, "iv": 32.6, "ivStd": 4.94, "period": "2025-2026"}, {"date": "2025-08-27", "price": 70.87, "ma5": 72.18, "iv": 33.1, "ivStd": 4.92, "period": "2025-2026"}, {"date": "2025-09-04", "price": 78.79, "ma5": 73.91, "iv": 33.1, "ivStd": 5.71, "period": "2025-2026"}, {"date": "2025-09-10", "price": 70.18, "ma5": 73.28, "iv": 33.1, "ivStd": 5.32, "period": "2025-2026"}, {"date": "2025-09-22", "price": 68.4, "ma5": 72.46, "iv": 34.0, "ivStd": 5.65, "period": "2025-2026"}, {"date": "2025-09-24", "price": 67.95, "ma5": 68.84, "iv": 34.3, "ivStd": 5.0, "period": "2025-2026"}, {"date": "2025-10-08", "price": 66.41, "ma5": 67.59, "iv": 34.9, "ivStd": 5.15, "period": "2025-2026"}, {"date": "2025-10-22", "price": 66.72, "ma5": 67.03, "iv": 35.2, "ivStd": 5.0, "period": "2025-2026"}, {"date": "2025-11-05", "price": 64.8, "ma5": 65.98, "iv": 36.5, "ivStd": 5.37, "period": "2025-2026"}, {"date": "2025-11-19", "price": 66.33, "ma5": 65.95, "iv": 35.1, "ivStd": 5.0, "period": "2025-2026"}, {"date": "2025-12-03", "price": 70.69, "ma5": 67.27, "iv": 33.2, "ivStd": 5.4, "period": "2025-2026"}, {"date": "2025-12-17", "price": 71.29, "ma5": 69.44, "iv": 31.4, "ivStd": 4.8, "period": "2025-2026"}, {"date": "2025-12-18", "price": 71.2, "ma5": 71.06, "iv": 31.4, "ivStd": 4.43, "period": "2025-2026"}, {"date": "2025-12-31", "price": 73.77, "ma5": 72.09, "iv": 30.9, "ivStd": 4.7, "period": "2025-2026"}, {"date": "2026-01-13", "price": 75.8, "ma5": 73.59, "iv": 30.9, "ivStd": 4.81, "period": "2025-2026"}, {"date": "2026-01-14", "price": 75.8, "ma5": 75.12, "iv": 30.9, "ivStd": 4.48, "period": "2025-2026"}, {"date": "2026-01-15", "price": 73.97, "ma5": 75.19, "iv": 30.9, "ivStd": 4.59, "period": "2025-2026"}, {"date": "2026-01-16", "price": 76.89, "ma5": 75.55, "iv": 31.0, "ivStd": 4.63, "period": "2025-2026"}, {"date": "2026-01-28", "price": 74.78, "ma5": 75.21, "iv": 31.2, "ivStd": 4.46, "period": "2025-2026"}, {"date": "2026-02-10", "price": 80.79, "ma5": 77.49, "iv": 31.6, "ivStd": 5.15, "period": "2025-2026"}, {"date": "2026-02-11", "price": 73.4, "ma5": 76.32, "iv": 31.6, "ivStd": 5.07, "period": "2025-2026"}, {"date": "2026-02-12", "price": 71.45, "ma5": 75.21, "iv": 31.9, "ivStd": 5.29, "period": "2025-2026"}, {"date": "2026-02-25", "price": 82.49, "ma5": 75.78, "iv": 36.1, "ivStd": 6.53, "period": "2025-2026"}, {"date": "2026-03-11", "price": 90.42, "ma5": 81.45, "iv": 41.3, "ivStd": 7.76, "period": "2025-2026"}, {"date": "2026-03-12", "price": 86.99, "ma5": 86.63, "iv": 40.9, "ivStd": 5.81, "period": "2025-2026"}, {"date": "2026-03-18", "price": 96.2, "ma5": 91.2, "iv": 42.8, "ivStd": 7.09, "period": "2025-2026"}, {"date": "2026-03-25", "price": 98.52, "ma5": 93.9, "iv": 43.9, "ivStd": 7.16, "period": "2025-2026"}, {"date": "2026-04-08", "price": 103.59, "ma5": 99.44, "iv": 45.9, "ivStd": 7.34, "period": "2025-2026"}, {"date": "2026-04-10", "price": 104.54, "ma5": 102.22, "iv": 46.2, "ivStd": 6.98, "period": "2025-2026"}, {"date": "2026-04-22", "price": 96.32, "ma5": 101.48, "iv": 39.6, "ivStd": 6.68, "period": "2025-2026"}, {"date": "2026-04-24", "price": 95.16, "ma5": 98.67, "iv": 38.4, "ivStd": 6.15, "period": "2025-2026"}, {"date": "2026-05-06", "price": 96.42, "ma5": 95.97, "iv": 43.2, "ivStd": 6.15, "period": "2025-2026"}, {"date": "2026-05-20", "price": 98.4, "ma5": 96.66, "iv": 48.6, "ivStd": 7.19, "period": "2025-2026"}, {"date": "2026-05-21", "price": 95.43, "ma5": 96.75, "iv": 48.3, "ivStd": 7.05, "period": "2025-2026"}, {"date": "2026-05-22", "price": 97.8, "ma5": 97.21, "iv": 48.1, "ivStd": 6.86, "period": "2025-2026"}, {"date": "2026-05-26", "price": 93.11, "ma5": 95.45, "iv": 47.1, "ivStd": 7.11, "period": "2025-2026"}, {"date": "2026-06-02", "price": 99.65, "ma5": 96.85, "iv": 45.3, "ivStd": 6.96, "period": "2025-2026"}, {"date": "2026-06-03", "price": 88.17, "ma5": 93.64, "iv": 44.7, "ivStd": 7.46, "period": "2025-2026"}, {"date": "2026-06-17", "price": 75.87, "ma5": 87.9, "iv": 42.2, "ivStd": 8.55, "period": "2025-2026"}, {"date": "2026-06-18", "price": 76.2, "ma5": 80.08, "iv": 41.2, "ivStd": 6.62, "period": "2025-2026"}, {"date": "2026-07-01", "price": 76.6, "ma5": 76.22, "iv": 36.9, "ivStd": 5.25, "period": "2025-2026"}, {"date": "2026-07-08", "price": 78.0, "ma5": 76.93, "iv": 33.8, "ivStd": 4.97, "period": "2025-2026"}, {"date": "2026-07-09", "price": 75.75, "ma5": 76.78, "iv": 34.1, "ivStd": 5.0, "period": "2025-2026"}, {"date": "2026-07-15", "price": 79.43, "ma5": 77.73, "iv": 35.2, "ivStd": 5.3, "period": "2025-2026"}, {"date": "2026-07-16", "price": 83.69, "ma5": 79.62, "iv": 35.8, "ivStd": 5.91, "period": "2025-2026"}, {"date": "2026-07-29", "price": 80.68, "ma5": 81.27, "iv": 38.9, "ivStd": 5.58, "period": "2025-2026"}, {"date": "2026-08-05", "price": 82.96, "ma5": 82.44, "iv": 40.8, "ivStd": 5.83, "period": "2025-2026"}, {"date": "2026-08-12", "price": 81.44, "ma5": 81.69, "iv": 42.8, "ivStd": 6.05, "period": "2025-2026"}, {"date": "2026-08-18", "price": 82.5, "ma5": 82.3, "iv": 44.1, "ivStd": 6.22, "period": "2025-2026"}, {"date": "2026-08-19", "price": 82.5, "ma5": 82.15, "iv": 44.0, "ivStd": 6.24, "period": "2025-2026"}, {"date": "2026-08-25", "price": 79.96, "ma5": 81.65, "iv": 43.2, "ivStd": 6.42, "period": "2025-2026"}, {"date": "2026-08-26", "price": 88.64, "ma5": 83.7, "iv": 42.9, "ivStd": 7.09, "period": "2025-2026"}, {"date": "2026-09-09", "price": 99.06, "ma5": 89.22, "iv": 40.8, "ivStd": 7.88, "period": "2025-2026"}, {"date": "2026-09-14", "price": 87.07, "ma5": 91.59, "iv": 40.6, "ivStd": 6.68, "period": "2025-2026"}, {"date": "2026-09-15", "price": 102.6, "ma5": 96.24, "iv": 40.5, "ivStd": 7.07, "period": "2025-2026"}, {"date": "2026-09-23", "price": 98.72, "ma5": 96.13, "iv": 39.6, "ivStd": 6.11, "period": "2025-2026"}, {"date": "2026-10-02", "price": 95.4, "ma5": 98.91, "iv": 37.8, "ivStd": 6.06, "period": "2025-2026"}, {"date": "2026-10-07", "price": 92.62, "ma5": 95.58, "iv": 37.7, "ivStd": 5.93, "period": "2025-2026"}, {"date": "2026-10-09", "price": 93.61, "ma5": 93.88, "iv": 36.7, "ivStd": 5.2, "period": "2025-2026"}, {"date": "2026-10-12", "price": 91.8, "ma5": 92.68, "iv": 36.2, "ivStd": 5.26, "period": "2025-2026"}, {"date": "2026-10-21", "price": 90.24, "ma5": 91.88, "iv": 35.2, "ivStd": 5.29, "period": "2025-2026"}, {"date": "2026-10-28", "price": 97.09, "ma5": 93.04, "iv": 34.8, "ivStd": 5.76, "period": "2025-2026"}];
+window.WTI_SIGNALS = [{"id": "Q3-01", "date": "2014-06-20", "exitDate": "2014-07-18", "period": "2014-2019", "type": "Q3", "name": "Q3 极低VoV+右侧跌破5MA做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 106.8, "exitPrice": 101.37, "pnl": 5340, "retPct": 5.0, "win": true, "mfe": 6.4, "mae": -1.1, "indicator": "VoV252 (P08 分位) & 跌破5MA", "note": "页岩油供给过剩前夕，波动率的波动率处于历史极低位，右侧破位5MA确认顶部。"}, {"id": "Q3-02", "date": "2015-05-15", "exitDate": "2015-06-12", "period": "2014-2019", "type": "Q3", "name": "Q3 蝶式凸度+ROC复合破位做空", "exitType": "TIME_EXIT 到期平仓", "entryPrice": 59.7, "exitPrice": 57.42, "pnl": 2190, "retPct": 3.67, "win": true, "mfe": 4.8, "mae": -1.8, "indicator": "ROC+BF25 (P84 分位) & TS_30_90", "note": "熊市反弹60日超15%后动能衰减，ADX回落至38%分位触发右侧减仓做空。"}, {"id": "Q3-03", "date": "2016-06-08", "exitDate": "2016-07-06", "period": "2014-2019", "type": "Q3", "name": "Q3 顶部Gamma阻力+5MA破位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 51.2, "exitPrice": 46.5, "pnl": 4610, "retPct": 9.0, "win": true, "mfe": 9.8, "mae": -1.4, "indicator": "Gamma_Wtd_Strike (P91) & BF25 (P88)", "note": "$50上方看涨期权Gamma阻力沉重，净看涨Gamma占比骤降后右侧顺畅下跌。"}, {"id": "Q3-04", "date": "2017-02-23", "exitDate": "2017-03-22", "period": "2014-2019", "type": "Q3", "name": "Q3 极低VoV静默顶部右侧做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 54.5, "exitPrice": 48.2, "pnl": 6210, "retPct": 11.4, "win": true, "mfe": 12.1, "mae": -0.8, "indicator": "VoV252 (P05 分位) & ADX衰竭", "note": "窄幅高位横盘后跌破5日均线，引发库存超预期累积下的快速多杀多。"}, {"id": "Q3-05", "date": "2018-05-22", "exitDate": "2018-06-19", "period": "2014-2019", "type": "Q3", "name": "Q3 ROC120+蝶式溢价高分位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 72.2, "exitPrice": 65.07, "pnl": 7040, "retPct": 9.75, "win": true, "mfe": 10.5, "mae": -1.2, "indicator": "ROC120 (P89) & BF25 (P86)", "note": "120日累计涨幅触及均值回归阈值，右侧破位后20日内迅速回撤逾9%。"}, {"id": "Q3-06", "date": "2018-07-10", "exitDate": "2018-07-19", "period": "2014-2019", "type": "Q3", "name": "Q3 二次冲高右侧做空检验", "exitType": "SL_HIT 止损离场", "entryPrice": 74.1, "exitPrice": 76.41, "pnl": -2400, "retPct": -3.12, "win": false, "mfe": 1.6, "mae": -3.2, "indicator": "ROC+BF25 (P82 分位)", "note": "短线地缘扰动引发反抽触及止损，但亏损严格受控于-3%以内。"}, {"id": "Q3-07", "date": "2018-10-03", "exitDate": "2018-10-31", "period": "2014-2019", "type": "Q3", "name": "Q3 四年高点双共振破位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 76.4, "exitPrice": 67.31, "pnl": 9000, "retPct": 11.78, "win": true, "mfe": 13.4, "mae": -0.9, "indicator": "ROC+BF25 (P95) & VoV (P14)", "note": "2018年四季度崩盘起点，右侧跌破5MA门控精准捕捉主跌浪首段。"}, {"id": "Q3-08", "date": "2019-04-23", "exitDate": "2019-05-21", "period": "2014-2019", "type": "Q3", "name": "Q3 春季躁动尾声右侧做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 66.3, "exitPrice": 61.19, "pnl": 5020, "retPct": 7.57, "win": true, "mfe": 8.9, "mae": -1.5, "indicator": "ROC120 (P92) & Net_Call_Gamma低分位", "note": "豁免期结束预期兑现后看涨Gamma占比骤降，右侧做空顺利止盈。"}, {"id": "Q3-09", "date": "2021-03-08", "exitDate": "2021-04-05", "period": "2020-2022", "type": "Q3", "name": "Q3 疫苗复苏冲高右侧回调做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 66.0, "exitPrice": 61.46, "pnl": 4450, "retPct": 6.74, "win": true, "mfe": 9.2, "mae": -1.7, "indicator": "ROC+BF25 (P88 分位)", "note": "连续60日急涨后触发蝶式凸度极值与5MA跌破，捕捉10%级别技术性回调。"}, {"id": "Q3-10", "date": "2021-10-25", "exitDate": "2021-11-19", "period": "2020-2022", "type": "Q3", "name": "Q3 能源危机阶段顶右侧做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 84.6, "exitPrice": 79.09, "pnl": 5420, "retPct": 6.41, "win": true, "mfe": 7.8, "mae": -1.6, "indicator": "ROC+BF25 (P91) & TS_30_90高分位", "note": "联合释放战略储备预期升温，期限结构走平配合5MA破位确认高点。"}, {"id": "Q3-11", "date": "2022-06-08", "exitDate": "2022-06-22", "period": "2020-2022", "type": "Q3", "name": "Q3 122美元通胀大顶右侧做空", "exitType": "SL_HIT 止损离场", "entryPrice": 122.1, "exitPrice": 125.09, "pnl": -3080, "retPct": -2.52, "win": false, "mfe": 2.1, "mae": -3.0, "indicator": "ROC+BF25 (P94 分位)", "note": "高位剧烈洗盘扫损一笔，体现高波环境下等风险缩仓与右侧确认的重要性。"}, {"id": "Q3-12", "date": "2023-09-28", "exitDate": "2023-10-26", "period": "2023-2024", "type": "Q3", "name": "Q3 减产冲高93美元顶部做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 93.7, "exitPrice": 89.81, "pnl": 3800, "retPct": 4.06, "win": true, "mfe": 8.4, "mae": -2.1, "indicator": "VoV252 (P12) & Gamma_Wtd_Strike", "note": "三季度OPEC+减产利多出尽，Gamma加权行权价显示上方阻力极重。"}, {"id": "Q3-13", "date": "2024-04-12", "exitDate": "2024-04-29", "period": "2023-2024", "type": "Q3", "name": "Q3 春季地缘溢价见顶做空", "exitType": "SL_HIT 止损离场", "entryPrice": 85.6, "exitPrice": 87.31, "pnl": -1800, "retPct": -2.1, "win": false, "mfe": 1.9, "mae": -2.2, "indicator": "VoV252 (P19 分位)", "note": "中东周末消息面扰动引发次日高开止损，亏损控制在1800美元。"}, {"id": "Q3-14", "date": "2025-01-15", "exitDate": "2025-02-12", "period": "2025-2026", "type": "Q3", "name": "Q3 冬季制裁冲高右侧破位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 80.0, "exitPrice": 72.77, "pnl": 7140, "retPct": 8.93, "win": true, "mfe": 9.6, "mae": -1.2, "indicator": "ROC+BF25 (P89 分位) & 跌破5MA", "note": "样本外首笔Q3做空：寒潮与制裁溢价消退后跌破5MA，20日顺畅下跌近9%。"}, {"id": "Q3-15", "date": "2025-06-23", "exitDate": "2025-07-03", "period": "2025-2026", "type": "Q3", "name": "Q3 夏季驾驶季脉冲做空检验", "exitType": "SL_HIT 止损离场", "entryPrice": 81.4, "exitPrice": 83.42, "pnl": -2110, "retPct": -2.59, "win": false, "mfe": 1.4, "mae": -2.7, "indicator": "VoV252 (P18 分位)", "note": "样本外止损单：短线库存骤降推动二次反抽，触发窄幅风控离场。"}, {"id": "Q3-16", "date": "2026-04-10", "exitDate": "2026-04-24", "period": "2025-2026", "type": "Q3", "name": "Q3 蝶式+低VoV双共振破位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 104.54, "exitPrice": 95.16, "pnl": 9289, "retPct": 8.9, "win": true, "mfe": 10.2, "mae": -1.0, "indicator": "ROC+BF25 (P96 分位) & VoV (P16 分位)", "note": "2026样本外旗舰做空信号：双策略共振叠加右侧跌破5日均线，两周斩获+$9,289。"}, {"id": "Q3-17", "date": "2026-05-22", "exitDate": "2026-06-02", "period": "2025-2026", "type": "Q3", "name": "Q3 5月高位反抽右侧试空", "exitType": "SL_HIT 止损离场", "entryPrice": 97.8, "exitPrice": 99.65, "pnl": -1942, "retPct": -1.99, "win": false, "mfe": 1.8, "mae": -2.1, "indicator": "ROC+BF25 (P85 分位)", "note": "高波期首轮试空被日内反抽扫损，但若无5MA门控左侧摸顶将承受逾2万美元回撤。"}, {"id": "Q3-18", "date": "2026-09-15", "exitDate": "2026-10-12", "period": "2025-2026", "type": "Q3", "name": "Q3 秋季百元大顶右侧破位做空", "exitType": "TP_HIT 止盈离场", "entryPrice": 102.6, "exitPrice": 92.11, "pnl": 10400, "retPct": 10.14, "win": true, "mfe": 11.5, "mae": -0.9, "indicator": "ROC+BF25 (P94) & Net_Call_Gamma低位", "note": "2026年秋季冲高回落，看涨Gamma占比枯竭后跌破5MA，单手净赚+$10,400。"}, {"id": "Q1-01", "date": "2015-01-20", "exitDate": "2015-02-17", "period": "2014-2019", "type": "Q1", "name": "Q1 暴跌腰斩恐慌极值抄底", "exitType": "TP_HIT 2ATR自适应止盈", "entryPrice": 46.4, "exitPrice": 51.29, "pnl": 4800, "retPct": 10.34, "win": true, "mfe": 12.6, "mae": -3.8, "indicator": "IV_STD_60 (P95) & Put_Skew极值", "note": "2ATR自适应宽止损成功抵御首周-3.8%洗盘，完整吃到超跌反弹。"}, {"id": "Q1-02", "date": "2015-08-24", "exitDate": "2015-09-18", "period": "2014-2019", "type": "Q1", "name": "Q1 全球股灾联动恐慌抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 38.2, "exitPrice": 43.49, "pnl": 5200, "retPct": 13.61, "win": true, "mfe": 18.2, "mae": -2.4, "indicator": "IV_STD_60 (P97) & RV20极值", "note": "8月流动性冲击导致期权曲面高度离散，抄底后3日内暴力反弹逾15%。"}, {"id": "Q1-03", "date": "2016-02-11", "exitDate": "2016-03-11", "period": "2014-2019", "type": "Q1", "name": "Q1 26美元历史大底Timer重置长拿", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 26.2, "exitPrice": 33.49, "pnl": 7200, "retPct": 27.48, "win": true, "mfe": 29.5, "mae": -1.9, "indicator": "IV_STD_60 (P99) & Timer Reset", "note": "重复触发倒计时重置机制典型样本，从26美元底部一路持有至33美元上方。"}, {"id": "Q1-04", "date": "2016-08-03", "exitDate": "2016-08-31", "period": "2014-2019", "type": "Q1", "name": "Q1 跌破40美元空头回补抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 40.8, "exitPrice": 45.29, "pnl": 4400, "retPct": 10.78, "win": true, "mfe": 14.1, "mae": -2.1, "indicator": "IV_STD_60 (P88) & OVX回落", "note": "OPEC冻产谈判预期升温，期权曲面偏度修复带动V型反转。"}, {"id": "Q1-05", "date": "2017-06-21", "exitDate": "2017-07-20", "period": "2014-2019", "type": "Q1", "name": "Q1 年中库存恐慌低点做多", "exitType": "TP_HIT 止盈离场", "entryPrice": 42.5, "exitPrice": 46.49, "pnl": 3900, "retPct": 9.18, "win": true, "mfe": 10.4, "mae": -1.5, "indicator": "IV_STD_60 (P86) & Term_Backwardation", "note": "42.5美元企稳后连续去库，20日窗口稳健斩获+$3,900。"}, {"id": "Q1-06", "date": "2018-12-24", "exitDate": "2019-01-23", "period": "2014-2019", "type": "Q1", "name": "Q1 圣诞夜流动性枯竭恐慌大底", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 42.5, "exitPrice": 48.69, "pnl": 6100, "retPct": 14.35, "win": true, "mfe": 16.8, "mae": -1.2, "indicator": "IV_STD_60 (P98) & 2ATR等风险缩仓", "note": "四季度暴跌44%后的极端恐慌底，等风险缩仓+倒计时重置完美捕获V反。"}, {"id": "Q1-07", "date": "2019-06-05", "exitDate": "2019-07-03", "period": "2014-2019", "type": "Q1", "name": "Q1 贸易摩擦急跌恐慌抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 51.7, "exitPrice": 55.59, "pnl": 3800, "retPct": 7.35, "win": true, "mfe": 9.5, "mae": -2.3, "indicator": "IV_STD_60 (P90)", "note": "2ATR止损宽度为3.6美元，避免了第2日-2.3%下探被窄止损洗出。"}, {"id": "Q1-08", "date": "2019-08-07", "exitDate": "2019-09-05", "period": "2014-2019", "type": "Q1", "name": "Q1 51美元双底支撑做多", "exitType": "TP_HIT 止盈离场", "entryPrice": 51.1, "exitPrice": 55.29, "pnl": 4100, "retPct": 8.02, "win": true, "mfe": 9.8, "mae": -2.8, "indicator": "IV_STD_60 (P89) & 延后1日入场", "note": "信号触发后延后1日（t+1）入场，成本降低1.1%，净利提升至+$4,100。"}, {"id": "Q1-09", "date": "2020-04-21", "exitDate": "2020-05-20", "period": "2020-2022", "type": "Q1", "name": "Q1 疫情极端负油价移仓后抄底", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 18.5, "exitPrice": 25.09, "pnl": 6500, "retPct": 35.14, "win": true, "mfe": 38.4, "mae": -4.5, "indicator": "IV_STD_60 (P100) & 极度缩仓0.18手", "note": "ATM IV突破130%，等风险机制自动将仓位缩至0.18手，安全度过剧震并获厚利。"}, {"id": "Q1-10", "date": "2020-11-02", "exitDate": "2020-11-30", "period": "2020-2022", "type": "Q1", "name": "Q1 欧美二次封锁低点抄底", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 35.8, "exitPrice": 40.99, "pnl": 5100, "retPct": 14.25, "win": true, "mfe": 16.2, "mae": -1.6, "indicator": "IV_STD_60 (P92) & Timer Reset", "note": "疫苗问世前夕恐慌盘涌出，随后触发连续3次Timer Reset跨季度大涨。"}, {"id": "Q1-11", "date": "2021-08-20", "exitDate": "2021-09-17", "period": "2020-2022", "type": "Q1", "name": "Q1 Delta疫情急跌62美元抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 62.3, "exitPrice": 67.29, "pnl": 4900, "retPct": 7.87, "win": true, "mfe": 9.4, "mae": -1.1, "indicator": "IV_STD_60 (P87)", "note": "连跌7日后触发五节点IV标准差高分位，入场即迎V型反转。"}, {"id": "Q1-12", "date": "2021-12-02", "exitDate": "2021-12-30", "period": "2020-2022", "type": "Q1", "name": "Q1 Omicron黑天鹅暴跌抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 65.6, "exitPrice": 70.99, "pnl": 5300, "retPct": 8.08, "win": true, "mfe": 11.2, "mae": -2.6, "indicator": "IV_STD_60 (P96) & 2ATR自适应", "note": "单日暴跌逾10%后次日下影线企稳，2ATR宽止损保护下20日大涨逾8%。"}, {"id": "Q1-13", "date": "2023-03-20", "exitDate": "2023-04-17", "period": "2023-2024", "type": "Q1", "name": "Q1 欧美银行业危机66美元抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 66.7, "exitPrice": 71.19, "pnl": 4400, "retPct": 6.6, "win": true, "mfe": 14.8, "mae": -1.8, "indicator": "IV_STD_60 (P93)", "note": "硅谷银行事件引发宏观恐慌抛售，随后OPEC+意外宣布减产跳空暴涨。"}, {"id": "Q1-14", "date": "2023-05-04", "exitDate": "2023-06-02", "period": "2023-2024", "type": "Q1", "name": "Q1 闪电崩盘下影线恐慌做多", "exitType": "TIME_EXIT 到期平仓", "entryPrice": 68.6, "exitPrice": 70.97, "pnl": 2279, "retPct": 3.32, "win": true, "mfe": 5.8, "mae": -2.4, "indicator": "IV_STD_60 (P85)", "note": "盘中闪崩触及64美元后迅速收回，20日到期稳健获利离场。"}, {"id": "Q1-15", "date": "2024-09-10", "exitDate": "2024-10-08", "period": "2023-2024", "type": "Q1", "name": "Q1 65美元三年低位恐慌抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 65.8, "exitPrice": 68.39, "pnl": 2500, "retPct": 3.8, "win": true, "mfe": 9.2, "mae": -1.5, "indicator": "IV_STD_60 (P91) & 缩仓0.52手", "note": "基金净多头创历史新低后的极端拥挤平仓反弹。"}, {"id": "Q1-16", "date": "2025-02-20", "exitDate": "2025-03-19", "period": "2025-2026", "type": "Q1", "name": "Q1 2025初春回撤企稳做多", "exitType": "TP_HIT 止盈离场", "entryPrice": 72.5, "exitPrice": 76.79, "pnl": 4200, "retPct": 5.79, "win": true, "mfe": 6.8, "mae": -1.9, "indicator": "IV_STD_60 (P88) & 2ATR自适应", "note": "样本外Q1第1笔：2ATR止损过滤日内噪音，第14日顺利触及止盈。"}, {"id": "Q1-17", "date": "2025-04-04", "exitDate": "2025-05-02", "period": "2025-2026", "type": "Q1", "name": "Q1 关税冲击62美元恐慌大底", "exitType": "TP_HIT 止盈离场", "entryPrice": 62.0, "exitPrice": 68.49, "pnl": 6400, "retPct": 10.32, "win": true, "mfe": 11.8, "mae": -2.7, "indicator": "IV_STD_60 (P96) & 延后1日入场", "note": "宏观贸易冲击急跌后触发IV离散极值，20日反弹超10%。"}, {"id": "Q1-18", "date": "2025-08-07", "exitDate": "2025-09-04", "period": "2025-2026", "type": "Q1", "name": "Q1 8月季节性急跌抄底", "exitType": "TP_HIT 止盈离场", "entryPrice": 73.6, "exitPrice": 78.79, "pnl": 5100, "retPct": 6.93, "win": true, "mfe": 7.9, "mae": -1.4, "indicator": "IV_STD_60 (P89)", "note": "炼厂检修前夕超跌修复，10日内迅速脱离成本区。"}, {"id": "Q1-19", "date": "2025-09-22", "exitDate": "2025-10-08", "period": "2025-2026", "type": "Q1", "name": "Q1 秋季宏观破位多头止损单", "exitType": "SL_HIT 2ATR止损", "entryPrice": 68.4, "exitPrice": 66.41, "pnl": -1900, "retPct": -2.78, "win": false, "mfe": 1.2, "mae": -4.8, "indicator": "IV_STD_60 (P86) & 0.42手缩仓", "note": "样本外Q1唯一止损单：等风险缩仓将2ATR止损金额严格控制在-$1,900。"}, {"id": "Q1-20", "date": "2025-11-05", "exitDate": "2025-12-03", "period": "2025-2026", "type": "Q1", "name": "Q1 年末64.8美元探底回升", "exitType": "TP_HIT 止盈离场", "entryPrice": 64.8, "exitPrice": 70.69, "pnl": 5800, "retPct": 8.95, "win": true, "mfe": 9.8, "mae": -1.6, "indicator": "IV_STD_60 (P92)", "note": "OPEC+推迟增产决议落地，期权偏度快速修复推动持续反弹。"}, {"id": "Q1-21", "date": "2026-01-14", "exitDate": "2026-02-10", "period": "2025-2026", "type": "Q1", "name": "Q1 2026开年洗盘后2ATR挽救单", "exitType": "TP_HIT 2ATR挽救止盈", "entryPrice": 75.8, "exitPrice": 80.79, "pnl": 4900, "retPct": 6.46, "win": true, "mfe": 7.2, "mae": -3.2, "indicator": "IV_STD_60 (P88) & 2ATR自适应", "note": "传统3%止损在第2日被扫(-$1,920)，而2ATR自适应规则成功扛住洗盘并止盈+$4,900。"}, {"id": "Q1-22", "date": "2026-06-18", "exitDate": "2026-07-16", "period": "2025-2026", "type": "Q1", "name": "Q1 6月急跌22%后超跌反弹", "exitType": "TP_HIT 止盈离场", "entryPrice": 76.2, "exitPrice": 83.69, "pnl": 7400, "retPct": 9.71, "win": true, "mfe": 11.4, "mae": -2.1, "indicator": "IV_STD_60 (P97) & 缩仓0.55手", "note": "5月下旬暴跌22%后的经典恐慌极值信号，20日反弹近10%。"}, {"id": "Q1-23", "date": "2026-07-09", "exitDate": "2026-08-05", "period": "2025-2026", "type": "Q1", "name": "Q1 盛夏二次回踩2ATR挽救单", "exitType": "TP_HIT 2ATR挽救止盈", "entryPrice": 78.0, "exitPrice": 82.96, "pnl": 4871, "retPct": 6.24, "win": true, "mfe": 6.9, "mae": -3.3, "indicator": "IV_STD_60 (P89) & 延后1日入场", "note": "原3%止损在入场首日被扫(-$2,340)，改用t+1入场+2ATR止损后实现+$4,871净利。"}, {"id": "Q1-24", "date": "2026-10-12", "exitDate": "2026-10-28", "period": "2025-2026", "type": "Q1", "name": "Q1 10月回调企稳短线止盈", "exitType": "TP_HIT 10日网格止盈", "entryPrice": 91.8, "exitPrice": 97.09, "pnl": 5200, "retPct": 5.66, "win": true, "mfe": 6.3, "mae": -1.3, "indicator": "IV_STD_60 (P87) & 10D窗口", "note": "秋季百元回调至91.8美元企稳，10日最佳半衰期窗口内快速兑现利润。"}, {"id": "Q2-01", "date": "2016-12-12", "exitDate": "2017-01-10", "period": "2014-2019", "type": "Q2", "name": "Q2 OPEC维也纳减产协议突破做多", "exitType": "TP_HIT 止盈离场", "entryPrice": 52.8, "exitPrice": 56.69, "pnl": 3800, "retPct": 7.2, "win": true, "mfe": 8.4, "mae": -1.4, "indicator": "Breakout_60D & Call_Delta偏斜", "note": "八年来首份减产协议达成，突破初期看涨成交偏斜确认顺势动能。"}, {"id": "Q2-02", "date": "2017-11-24", "exitDate": "2017-12-22", "period": "2014-2019", "type": "Q2", "name": "Q2 Keystone管道关停突破续涨", "exitType": "TP_HIT 止盈离场", "entryPrice": 58.9, "exitPrice": 63.19, "pnl": 4200, "retPct": 7.13, "win": true, "mfe": 8.1, "mae": -1.2, "indicator": "ADX_14上行 & 现货升水走强", "note": "库欣库存持续去化推动跨期结构转为深度Back，趋势突破顺畅。"}, {"id": "Q2-03", "date": "2018-01-25", "exitDate": "2018-02-22", "period": "2014-2019", "type": "Q2", "name": "Q2 65美元平台突破顺势跟进", "exitType": "TP_HIT 止盈离场", "entryPrice": 65.5, "exitPrice": 69.19, "pnl": 3600, "retPct": 5.5, "win": true, "mfe": 6.4, "mae": -1.8, "indicator": "ROC_60突破 & 10D持有网格", "note": "10日持有期网格在突破初期表现显著优于40日长拿，精准规避2月美股闪崩。"}, {"id": "Q2-04", "date": "2019-02-19", "exitDate": "2019-03-19", "period": "2014-2019", "type": "Q2", "name": "Q2 2019年初复苏突破颈线做多", "exitType": "TP_HIT 止盈离场", "entryPrice": 56.1, "exitPrice": 60.09, "pnl": 3900, "retPct": 6.95, "win": true, "mfe": 7.6, "mae": -1.1, "indicator": "Timer_Reset连续持仓段", "note": "与1月抄底仓位形成Timer Reset接力，持仓周期延续至春季高点。"}, {"id": "Q2-05", "date": "2019-12-30", "exitDate": "2020-01-08", "period": "2014-2019", "type": "Q2", "name": "Q2 跨年突破叠加中东脉冲止盈", "exitType": "TP_HIT 止盈离场", "entryPrice": 61.7, "exitPrice": 64.99, "pnl": 3200, "retPct": 5.19, "win": true, "mfe": 6.3, "mae": -0.9, "indicator": "Call_Skew顺势脉冲", "note": "1月初美伊摩擦脉冲触发+5%止盈目标，在疫情崩盘前全身而退。"}, {"id": "Q2-06", "date": "2020-06-05", "exitDate": "2020-07-02", "period": "2020-2022", "type": "Q2", "name": "Q2 复工复产突破40美元关口", "exitType": "TP_HIT 止盈离场", "entryPrice": 39.5, "exitPrice": 44.39, "pnl": 4800, "retPct": 12.15, "win": true, "mfe": 13.5, "mae": -2.2, "indicator": "Timer_Reset & IV曲面常态化", "note": "高波回落期多头趋势最为顺畅，20日窗口内稳步推升。"}, {"id": "Q2-07", "date": "2021-01-12", "exitDate": "2021-02-09", "period": "2020-2022", "type": "Q2", "name": "Q2 沙特额外减产100万桶突破", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 53.2, "exitPrice": 58.39, "pnl": 5100, "retPct": 9.59, "win": true, "mfe": 11.2, "mae": -1.0, "indicator": "Timer_Reset (72天连续段)", "note": "沙特意外自愿减产引爆主升浪，倒计时重置机制实现跨季度复利。"}, {"id": "Q2-08", "date": "2021-07-06", "exitDate": "2021-08-03", "period": "2020-2022", "type": "Q2", "name": "Q2 75美元三年新高突破止盈", "exitType": "TP_HIT 10日止盈", "entryPrice": 75.2, "exitPrice": 79.59, "pnl": 4300, "retPct": 5.72, "win": true, "mfe": 6.4, "mae": -1.9, "indicator": "10D持有半衰期最优窗口", "note": "突破后第8日触及目标止盈，避开随后Delta疫情引发的回调。"}, {"id": "Q2-09", "date": "2022-01-18", "exitDate": "2022-02-15", "period": "2020-2022", "type": "Q2", "name": "Q2 俄乌冲突前夕突破85美元", "exitType": "TIMER_RESET 趋势止盈", "entryPrice": 85.4, "exitPrice": 91.69, "pnl": 6200, "retPct": 7.26, "win": true, "mfe": 14.5, "mae": -1.3, "indicator": "IV_STD_60 & Call_Wing齐升", "note": "现货极度紧缺叠加地缘升温，突破信号与Timer Reset捕获主升段。"}, {"id": "Q2-10", "date": "2023-07-13", "exitDate": "2023-08-10", "period": "2023-2024", "type": "Q2", "name": "Q2 沙特俄罗斯联合减产突破76美元", "exitType": "TP_HIT 止盈离场", "entryPrice": 76.8, "exitPrice": 81.09, "pnl": 4200, "retPct": 5.47, "win": true, "mfe": 8.9, "mae": -1.1, "indicator": "ADX_14 > 65% & 20D窗口", "note": "突破200日均线后稳步走高，开启2023年三季度单边上涨行情。"}, {"id": "Q2-11", "date": "2024-01-29", "exitDate": "2024-02-26", "period": "2023-2024", "type": "Q2", "name": "Q2 红海航运受阻突破78美元", "exitType": "TP_HIT 止盈离场", "entryPrice": 78.0, "exitPrice": 80.9, "pnl": 2812, "retPct": 3.61, "win": true, "mfe": 4.9, "mae": -1.7, "indicator": "Time_Spread走强 & 20D到期", "note": "欧洲柴油裂解价差走强带动原油突破，20日到期稳健止盈。"}, {"id": "Q2-12", "date": "2024-07-05", "exitDate": "2024-07-25", "period": "2023-2024", "type": "Q2", "name": "Q2 飓风Beryl预警突破顺势单", "exitType": "TIME_EXIT 10日止盈", "entryPrice": 83.9, "exitPrice": 86.19, "pnl": 2200, "retPct": 2.62, "win": true, "mfe": 3.8, "mae": -1.4, "indicator": "10D快速衰减窗口", "note": "严格遵守10-20日半衰期退出原则，在7月下旬转跌前锁定收益。"}, {"id": "Q2-13", "date": "2025-05-14", "exitDate": "2025-06-11", "period": "2025-2026", "type": "Q2", "name": "Q2 2025初夏突破70美元关口", "exitType": "TP_HIT 止盈离场", "entryPrice": 69.8, "exitPrice": 74.79, "pnl": 4900, "retPct": 7.02, "win": true, "mfe": 8.6, "mae": -1.3, "indicator": "ADX突破 & 2ATR自适应", "note": "样本外Q2首笔：突破70美元整数位后顺势上冲至75美元上方。"}, {"id": "Q2-14", "date": "2025-12-18", "exitDate": "2026-01-16", "period": "2025-2026", "type": "Q2", "name": "Q2 跨年寒潮库存去化突破", "exitType": "TP_HIT 止盈离场", "entryPrice": 71.2, "exitPrice": 76.89, "pnl": 5600, "retPct": 7.87, "win": true, "mfe": 8.9, "mae": -1.5, "indicator": "Timer_Reset跨年段", "note": "北美极寒天气引发取暖油需求激增，跨年持仓斩获+$5,600。"}, {"id": "Q2-15", "date": "2026-02-12", "exitDate": "2026-03-12", "period": "2025-2026", "type": "Q2", "name": "Q2 2026春季+36.6%主升浪突破", "exitType": "TIMER_RESET 趋势大胜", "entryPrice": 73.4, "exitPrice": 86.99, "pnl": 13500, "retPct": 18.39, "win": true, "mfe": 36.6, "mae": -3.1, "indicator": "2ATR挽救 + Timer Reset", "note": "2026-02-11原3%窄止损在D1被洗出(-$2,040)错失+36.6%主升浪；2ATR+重置规则大赚+$13,500！"}, {"id": "Q2-16", "date": "2026-03-18", "exitDate": "2026-04-08", "period": "2025-2026", "type": "Q2", "name": "Q2 突破95美元冲刺百元关口", "exitType": "TP_HIT 止盈离场", "entryPrice": 96.2, "exitPrice": 103.59, "pnl": 7300, "retPct": 7.59, "win": true, "mfe": 8.7, "mae": -1.8, "indicator": "Timer_Reset第2段 & 缩仓0.65手", "note": "主升浪加速段顺势跟进，在4月10日Q3做空信号触发前夕完美止盈。"}, {"id": "Q2-17", "date": "2026-05-21", "exitDate": "2026-05-26", "period": "2025-2026", "type": "Q2", "name": "Q2 5月高波假突破止损单", "exitType": "SL_HIT 等风险缩仓止损", "entryPrice": 98.4, "exitPrice": 93.11, "pnl": -2100, "retPct": -5.38, "win": false, "mfe": 0.8, "mae": -5.5, "indicator": "高波缩仓0.38手 & 2ATR止损", "note": "2026-05-20高波真下跌行情（20日-22.6%），等风险缩仓将单笔亏损严格锁定在-$2,100。"}, {"id": "Q2-18", "date": "2026-08-19", "exitDate": "2026-09-14", "period": "2025-2026", "type": "Q2", "name": "Q2 8月高波洗盘后+24.3%突破单", "exitType": "TP_HIT 2ATR挽救止盈", "entryPrice": 82.5, "exitPrice": 87.07, "pnl": 4478, "retPct": 5.43, "win": true, "mfe": 24.3, "mae": -3.4, "indicator": "2ATR自适应 + 缩仓0.45手", "note": "原3%止损在D5被扫(-$2,630)错失+24.3%大涨；2ATR自适应规则成功存活并止盈+$4,478。"}, {"id": "Q2-19", "date": "2026-10-02", "exitDate": "2026-10-09", "period": "2025-2026", "type": "Q2", "name": "Q2 10月初高位震荡止损单", "exitType": "SL_HIT 止损离场", "entryPrice": 95.4, "exitPrice": 93.61, "pnl": -1700, "retPct": -1.88, "win": false, "mfe": 1.1, "mae": -2.0, "indicator": "ADX衰竭预警减半仓位", "note": "ADX已落入<40%衰竭区，半仓试多触发轻度止损离场。"}, {"id": "WS-01", "date": "2019-10-10", "exitDate": "2019-10-14", "period": "2014-2019", "type": "WHIPSAW", "name": "✖ 3%窄止损错杀 #1 (D2被扫)", "exitType": "WHIPSAW D2止损错杀", "entryPrice": 53.5, "exitPrice": 51.89, "pnl": -1700, "retPct": -3.01, "win": false, "mfe": 7.8, "mae": -3.2, "indicator": "3%止损 = 0.62x ATR20 | 20日期末 +7.8%", "note": "入场第2日回踩-3.2%触发机械止损，随后18天一路上涨+7.8%，典型噪音洗盘。"}, {"id": "WS-02", "date": "2020-09-08", "exitDate": "2020-09-10", "period": "2020-2022", "type": "WHIPSAW", "name": "✖ 3%窄止损错杀 #2 (D2被扫)", "exitType": "WHIPSAW D2止损错杀", "entryPrice": 36.8, "exitPrice": 35.69, "pnl": -1200, "retPct": -3.02, "win": false, "mfe": 11.4, "mae": -3.4, "indicator": "3%止损 = 0.58x ATR20 | 20日期末 +11.4%", "note": "当时ATR20高达5.2%，3%止损不足0.6倍ATR，日内正常波动即被扫出局。"}, {"id": "WS-03", "date": "2021-05-18", "exitDate": "2021-05-20", "period": "2020-2022", "type": "WHIPSAW", "name": "✖ 3%窄止损错杀 #3 (D3被扫)", "exitType": "WHIPSAW D3止损错杀", "entryPrice": 65.5, "exitPrice": 63.53, "pnl": -2060, "retPct": -3.01, "win": false, "mfe": 9.6, "mae": -3.5, "indicator": "3%止损 = 0.71x ATR20 | 20日期末 +9.6%", "note": "伊核谈判传闻引发3日短线急挫扫损，随后迅速收复失地并创出71美元新高。"}, {"id": "WS-04", "date": "2023-06-12", "exitDate": "2023-06-13", "period": "2023-2024", "type": "WHIPSAW", "name": "✖ 3%窄止损错杀 #4 (D1被扫)", "exitType": "WHIPSAW D1止损错杀", "entryPrice": 67.1, "exitPrice": 65.08, "pnl": -2110, "retPct": -3.01, "win": false, "mfe": 6.8, "mae": -3.3, "indicator": "3%止损 = 0.64x ATR20 | 20日期末 +6.8%", "note": "入场首日探底65美元被扫，次日即拉出大阳线并在20日内涨超+6.8%。"}, {"id": "WS-05", "date": "2024-06-04", "exitDate": "2024-06-05", "period": "2023-2024", "type": "WHIPSAW", "name": "✖ 3%窄止损错杀 #5 (D1被扫)", "exitType": "WHIPSAW D1止损错杀", "entryPrice": 73.2, "exitPrice": 70.99, "pnl": -2300, "retPct": -3.02, "win": false, "mfe": 11.7, "mae": -3.1, "indicator": "3%止损 = 0.69x ATR20 | 20日期末 +11.7%", "note": "OPEC+会议后过度反应引发首日洗盘，止损后连涨三周错失+11.7%主升段。"}, {"id": "WS-06", "date": "2026-01-13", "exitDate": "2026-01-15", "period": "2025-2026", "type": "WHIPSAW", "name": "✖ 2026样本外错杀 #1 (短线急涨D2被扫)", "exitType": "WHIPSAW 错杀 (重返+5%)", "entryPrice": 75.8, "exitPrice": 73.97, "pnl": -1920, "retPct": -2.53, "win": false, "mfe": 5.5, "mae": -3.1, "indicator": "非高波短线急涨 | D2被扫 -$1,920 | 期末 +5.5%", "note": "2026样本外解剖 #1：入场第2日被-3%止损洗出(-$1,920)，但20日期末实际收涨+5.5%重返止盈目标。"}, {"id": "WS-07", "date": "2026-02-11", "exitDate": "2026-02-12", "period": "2025-2026", "type": "WHIPSAW", "name": "✖ 2026样本外错杀 #2 (错失+36.6%主升浪)", "exitType": "WHIPSAW 错杀 (错失主升浪)", "entryPrice": 73.4, "exitPrice": 71.45, "pnl": -2040, "retPct": -2.78, "win": false, "mfe": 36.6, "mae": -3.1, "indicator": "正常上升趋势 | D1被扫 -$2,040 | 期末 +36.6%", "note": "2026样本外最痛错杀：入场首日下影线刚好触及-3%被扫(-$2,040)，随后20日暴涨+36.6%直奔百元！"}, {"id": "WS-08", "date": "2026-05-20", "exitDate": "2026-05-21", "period": "2025-2026", "type": "WHIPSAW", "name": "✖ 2026样本外诊断 #3 (真实下行避险)", "exitType": "TRUE_STOP 真实下行避险", "entryPrice": 98.4, "exitPrice": 95.43, "pnl": -3060, "retPct": -3.11, "win": false, "mfe": 0.4, "mae": -22.6, "indicator": "高波动上升尾声 | D1被扫 -$3,060 | 期末 -22.6%", "note": "2026样本外5笔止损中唯一1笔真实下行（20日期末暴跌-22.6%），止损成功规避尾部深套。"}, {"id": "WS-09", "date": "2026-07-08", "exitDate": "2026-07-09", "period": "2025-2026", "type": "WHIPSAW", "name": "✖ 2026样本外错杀 #4 (D1被扫后重返+5%)", "exitType": "WHIPSAW 错杀 (重返+5%)", "entryPrice": 78.0, "exitPrice": 75.75, "pnl": -2340, "retPct": -3.0, "win": false, "mfe": 5.8, "mae": -3.2, "indicator": "反弹趋势未完整 | D1被扫 -$2,340 | 期末 +0.5% (盘中+5.8%)", "note": "2026样本外解剖 #4：入场首日被扫(-$2,340)，但盘中最高重返+5.8%（触及+5%止盈线），期末收涨+0.5%。"}, {"id": "WS-10", "date": "2026-08-18", "exitDate": "2026-08-25", "period": "2025-2026", "type": "WHIPSAW", "name": "✖ 2026样本外错杀 #5 (高波D5被扫错失+24.3%)", "exitType": "WHIPSAW 错杀 (重返+5%)", "entryPrice": 82.5, "exitPrice": 79.96, "pnl": -2630, "retPct": -3.19, "win": false, "mfe": 24.3, "mae": -3.4, "indicator": "高波反弹趋势 | D5被扫 -$2,630 | 期末 +24.3%", "note": "2026样本外解剖 #5：高波动环境下3%仅合0.55x ATR，第5日被洗出后20日内狂飙+24.3%。"}];
+
+// WTI Crude Oil Interactive Dashboard Controller
+(function() {
+  const SERIES = window.WTI_SERIES || [];
+  const SIGNALS = window.WTI_SIGNALS || [];
+
+  const state = {
+    period: 'ALL',        // 'ALL', '2014-2019', '2020-2022', '2023-2024', '2025-2026'
+    layer: 'ALL',         // 'ALL', 'Q3', 'Q1', 'Q2', 'WHIPSAW'
+    selectedSignalId: 'Q3-16', // Default flagship OOS signal: 2026-04-10 Q3 short
+    showMA5: true,
+    showTradePath: true,
+    searchQuery: '',
+    activeTab: 'ledger',
+    hoverIndex: null,
+    hoveredSignalId: null
+  };
+
+  // Cached screen coordinates of signals for click/hover detection on price canvas
+  let renderedSignalCoords = [];
+
+  function formatUSD(val, showPlus = true) {
+    const num = Number(val) || 0;
+    const sign = num > 0 ? (showPlus ? '+' : '') : (num < 0 ? '-' : '');
+    return sign + '$' + Math.abs(num).toLocaleString('en-US');
+  }
+
+  function getFilteredSeries() {
+    if (state.period === 'ALL') return SERIES;
+    return SERIES.filter(d => d.period === state.period);
+  }
+
+  function getFilteredSignals() {
+    return SIGNALS.filter(s => {
+      const matchPeriod = (state.period === 'ALL') || (s.period === state.period);
+      const matchLayer = (state.layer === 'ALL') || (s.type === state.layer);
+      return matchPeriod && matchLayer;
+    });
+  }
+
+  function getPeriodSignals(typeFilter) {
+    return SIGNALS.filter(s => {
+      const matchPeriod = (state.period === 'ALL') || (s.period === state.period);
+      const matchType = !typeFilter || (Array.isArray(typeFilter) ? typeFilter.includes(s.type) : s.type === typeFilter);
+      return matchPeriod && matchType;
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toastBanner');
+    const toastText = document.getElementById('toastText');
+    if (!toast || !toastText) return;
+    toastText.textContent = msg;
+    toast.classList.remove('hidden');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 2800);
+  }
+
+  // Update KPI Cards & Filter Button States
+  function updateDashboardMetrics() {
+    const visibleSignals = getFilteredSignals();
+
+    // Calculate layer-aware stats matching the exact report specification
+    const q3List = visibleSignals.filter(s => s.type === 'Q3');
+    const q1q2List = visibleSignals.filter(s => s.type === 'Q1' || s.type === 'Q2');
+    const wsList = visibleSignals.filter(s => s.type === 'WHIPSAW');
+
+    const q3Pnl = q3List.reduce((acc, s) => acc + s.pnl, 0);
+    const q3Wins = q3List.filter(s => s.win).length;
+    const q3WinRate = q3List.length > 0 ? Math.round((q3Wins / q3List.length) * 100) : 0;
+
+    const longPnl = q1q2List.reduce((acc, s) => acc + s.pnl, 0);
+    const longWins = q1q2List.filter(s => s.win).length;
+    const longWinRate = q1q2List.length > 0 ? Math.round((longWins / q1q2List.length) * 100) : 0;
+
+    // Count true whipsaws vs total narrow stop samples
+    const wsWhipsawCount = wsList.filter(s => s.exitType.indexOf('TRUE_STOP') === -1).length;
+
+    const elTotalCount = document.getElementById('kpiTotalCount');
+    const elTotalSub = document.getElementById('kpiTotalSub');
+    if (elTotalCount) elTotalCount.textContent = visibleSignals.length + ' 笔';
+    if (elTotalSub) {
+      elTotalSub.textContent = `Q3做空 ${q3List.length} | Q1抄底 ${visibleSignals.filter(s=>s.type==='Q1').length} | Q2突破 ${visibleSignals.filter(s=>s.type==='Q2').length} | 窄止损诊断 ${wsList.length}`;
+    }
+
+    const elQ3Pnl = document.getElementById('kpiQ3Pnl');
+    const elQ3Meta = document.getElementById('kpiQ3Meta');
+    if (elQ3Pnl) {
+      elQ3Pnl.textContent = formatUSD(q3Pnl, true);
+      elQ3Pnl.className = 'text-xl sm:text-2xl font-bold font-mono-num ' + (q3Pnl >= 0 ? 'text-rose-400' : 'text-slate-400');
+    }
+    if (elQ3Meta) {
+      elQ3Meta.textContent = `${q3List.length}笔 | 胜率 ${q3WinRate}% (右侧5MA门控)`;
+    }
+
+    const elLongPnl = document.getElementById('kpiLongPnl');
+    const elLongMeta = document.getElementById('kpiLongMeta');
+    if (elLongPnl) {
+      elLongPnl.textContent = formatUSD(longPnl, true);
+      elLongPnl.className = 'text-xl sm:text-2xl font-bold font-mono-num ' + (longPnl > 0 ? 'text-emerald-400' : 'text-slate-400');
+    }
+    if (elLongMeta) {
+      elLongMeta.textContent = `${q1q2List.length}笔 | 胜率 ${longWinRate}% (2ATR+重置)`;
+    }
+
+    const elWsTitle = document.getElementById('kpiWsTitle');
+    const elWsMeta = document.getElementById('kpiWsMeta');
+    if (elWsTitle) {
+      if (wsList.length === 0) {
+        elWsTitle.textContent = '0 笔典型样本';
+      } else if (state.period === 'ALL' && state.layer === 'ALL') {
+        elWsTitle.textContent = `${wsWhipsawCount} 笔错杀样本 (共${wsList.length}笔解剖)`;
+      } else {
+        elWsTitle.textContent = `${wsList.length} 笔典型样本 (${wsWhipsawCount}笔重返+5%)`;
+      }
+    }
+    if (elWsMeta) {
+      elWsMeta.textContent = wsList.length > 0
+        ? '中位 0.66x ATR20 | 75%集中在入场D1–D3被扫'
+        : '切换到「全部信号」或「IV60窄止损」查看';
+    }
+
+    // Update Period filter button styles
+    document.querySelectorAll('[data-period-btn]').forEach(btn => {
+      const p = btn.getAttribute('data-period-btn');
+      btn.classList.toggle('filter-btn-active', p === state.period);
+    });
+
+    // Update Layer filter button styles & live counts for active period
+    const pAll = getPeriodSignals(null).length;
+    const pQ3 = getPeriodSignals('Q3').length;
+    const pQ1 = getPeriodSignals('Q1').length;
+    const pQ2 = getPeriodSignals('Q2').length;
+    const pWS = getPeriodSignals('WHIPSAW').length;
+
+    const countMap = { ALL: pAll, Q3: pQ3, Q1: pQ1, Q2: pQ2, WHIPSAW: pWS };
+    document.querySelectorAll('[data-layer-btn]').forEach(btn => {
+      const l = btn.getAttribute('data-layer-btn');
+      btn.classList.remove('layer-btn-active-ALL', 'layer-btn-active-Q3', 'layer-btn-active-Q1', 'layer-btn-active-Q2', 'layer-btn-active-WHIPSAW');
+      if (l === state.layer) {
+        btn.classList.add('layer-btn-active-' + l);
+      }
+      const badge = btn.querySelector('[data-layer-count]');
+      if (badge && countMap[l] !== undefined) {
+        badge.textContent = countMap[l] + '笔';
+      }
+    });
+
+    // Ensure selectedSignalId is inside visibleSignals if possible
+    if (visibleSignals.length > 0 && !visibleSignals.some(s => s.id === state.selectedSignalId)) {
+      state.selectedSignalId = visibleSignals[visibleSignals.length - 1].id;
+    }
+
+    renderMicroscope();
+    renderLedgerTable();
+    drawCharts();
+  }
+
+  // Render Single-Trade Microscope Panel
+  function renderMicroscope() {
+    const visibleSignals = getFilteredSignals();
+    let sig = SIGNALS.find(s => s.id === state.selectedSignalId) || visibleSignals[0] || SIGNALS[0];
+    if (!sig) return;
+
+    const idxInVisible = visibleSignals.findIndex(s => s.id === sig.id);
+    const posText = idxInVisible >= 0
+      ? `当前筛选第 ${idxInVisible + 1} / ${visibleSignals.length} 笔`
+      : `全局信号 (${sig.id})`;
+
+    const typeBadgeMap = {
+      Q3: { text: '▼ Q3 顶部右侧做空 / 止盈', cls: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
+      Q1: { text: '▲ Q1 恐慌抄底 + 2ATR退出', cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+      Q2: { text: '◆ Q2 突破续涨 + 止盈退出', cls: 'bg-sky-500/20 text-sky-300 border-sky-500/40' },
+      WHIPSAW: { text: '✖ IV60 固定3%窄止损诊断', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40' }
+    };
+    const badgeInfo = typeBadgeMap[sig.type] || typeBadgeMap.Q3;
+
+    const elBadge = document.getElementById('microBadge');
+    if (elBadge) {
+      elBadge.textContent = badgeInfo.text;
+      elBadge.className = 'px-2.5 py-0.5 rounded-full text-xs font-semibold border ' + badgeInfo.cls;
+    }
+
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setTxt('microPosIndex', posText);
+    setTxt('microName', `${sig.name}（${sig.exitType}）`);
+    setTxt('microDates', `${sig.date}（入场） → ${sig.exitDate}（退出）`);
+    setTxt('microPriceIndicator', `原油开仓价 $${sig.entryPrice.toFixed(2)} → 平仓价 $${sig.exitPrice.toFixed(2)} | ${sig.indicator}`);
+
+    const elPnl = document.getElementById('microPnl');
+    if (elPnl) {
+      const retStr = (sig.retPct >= 0 ? '+' : '') + sig.retPct.toFixed(2) + '%';
+      elPnl.textContent = `${formatUSD(sig.pnl, true)}（收益率 ${retStr}，已扣除 $90 成本）`;
+      elPnl.className = 'text-base sm:text-lg font-bold font-mono-num ' + (sig.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+    }
+
+    setTxt('microMfeMae', `最大有利变动 (MFE) +${sig.mfe.toFixed(1)}% / 最大不利变动 (MAE) ${sig.mae.toFixed(1)}%`);
+    setTxt('microNote', sig.note);
+
+    // Update MFE / MAE visual bar widths
+    const mfeBar = document.getElementById('microMfeBar');
+    const maeBar = document.getElementById('microMaeBar');
+    if (mfeBar && maeBar) {
+      const maxScale = 40; // 40% full scale
+      const mfeW = Math.min(100, Math.round((Math.abs(sig.mfe) / maxScale) * 100));
+      const maeW = Math.min(100, Math.round((Math.abs(sig.mae) / maxScale) * 100));
+      mfeBar.style.width = Math.max(6, mfeW) + '%';
+      maeBar.style.width = Math.max(6, maeW) + '%';
+    }
+  }
+
+  // Draw Synchronized Dual Canvas (Price + Signals Panel & ATM IV + Dispersion Panel)
+  function drawCharts() {
+    const priceCanvas = document.getElementById('wtiPriceCanvas');
+    const ivCanvas = document.getElementById('wtiIvCanvas');
+    if (!priceCanvas || !ivCanvas) return;
+
+    const series = getFilteredSeries();
+    const signals = getFilteredSignals();
+    if (series.length < 2) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const pRect = priceCanvas.parentElement.getBoundingClientRect();
+    const ivRect = ivCanvas.parentElement.getBoundingClientRect();
+
+    const width = Math.max(320, Math.floor(pRect.width));
+    const pHeight = Math.max(250, Math.floor(pRect.height));
+    const ivHeight = Math.max(130, Math.floor(ivRect.height));
+
+    priceCanvas.width = width * dpr;
+    priceCanvas.height = pHeight * dpr;
+    priceCanvas.style.width = width + 'px';
+    priceCanvas.style.height = pHeight + 'px';
+
+    ivCanvas.width = width * dpr;
+    ivCanvas.height = ivHeight * dpr;
+    ivCanvas.style.width = width + 'px';
+    ivCanvas.style.height = ivHeight + 'px';
+
+    const pCtx = priceCanvas.getContext('2d');
+    const ivCtx = ivCanvas.getContext('2d');
+    pCtx.scale(dpr, dpr);
+    ivCtx.scale(dpr, dpr);
+
+    const pad = { left: 54, right: 20, top: 22, bottom: 26 };
+    const plotW = width - pad.left - pad.right;
+    const pPlotH = pHeight - pad.top - pad.bottom;
+    const ivPlotH = ivHeight - 16 - 24;
+
+    // Price range
+    let minP = Infinity, maxP = -Infinity;
+    series.forEach(d => {
+      if (d.price < minP) minP = d.price;
+      if (d.price > maxP) maxP = d.price;
+    });
+    signals.forEach(s => {
+      if (s.entryPrice < minP) minP = s.entryPrice;
+      if (s.entryPrice > maxP) maxP = s.entryPrice;
+    });
+    minP = Math.floor(Math.max(10, minP - 6));
+    maxP = Math.ceil(maxP + 8);
+
+    const xOfIndex = (idx) => pad.left + (idx / Math.max(1, series.length - 1)) * plotW;
+    const yOfPrice = (p) => pad.top + (1 - (p - minP) / Math.max(1, maxP - minP)) * pPlotH;
+
+    // Map date to index
+    const dateIdxMap = {};
+    series.forEach((d, i) => { dateIdxMap[d.date] = i; });
+    const findNearestIdx = (dtStr) => {
+      if (dateIdxMap[dtStr] !== undefined) return dateIdxMap[dtStr];
+      let bestIdx = 0, bestDiff = Infinity;
+      for (let i = 0; i < series.length; i++) {
+        const diff = Math.abs(new Date(series[i].date) - new Date(dtStr));
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      }
+      return bestIdx;
+    };
+
+    // --- 1. Draw Price Background & Grid ---
+    pCtx.clearRect(0, 0, width, pHeight);
+    pCtx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+    pCtx.lineWidth = 1;
+    pCtx.font = '11px "JetBrains Mono", monospace';
+    pCtx.fillStyle = '#94a3b8';
+
+    const pSteps = 5;
+    for (let i = 0; i <= pSteps; i++) {
+      const val = minP + ((maxP - minP) / pSteps) * (pSteps - i);
+      const y = pad.top + (pPlotH / pSteps) * i;
+      pCtx.beginPath();
+      pCtx.moveTo(pad.left, y);
+      pCtx.lineTo(width - pad.right, y);
+      pCtx.stroke();
+      pCtx.textAlign = 'right';
+      pCtx.fillText('$' + val.toFixed(0), pad.left - 8, y + 4);
+    }
+
+    // Highlight 2025-2026 OOS zone if in ALL view
+    if (state.period === 'ALL') {
+      const oosStartIdx = series.findIndex(d => d.date >= '2025-01-01');
+      if (oosStartIdx >= 0) {
+        const xOos = xOfIndex(oosStartIdx);
+        pCtx.fillStyle = 'rgba(56, 189, 248, 0.045)';
+        pCtx.fillRect(xOos, pad.top, width - pad.right - xOos, pPlotH);
+        pCtx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        pCtx.setLineDash([4, 4]);
+        pCtx.beginPath();
+        pCtx.moveTo(xOos, pad.top);
+        pCtx.lineTo(xOos, pad.top + pPlotH);
+        pCtx.stroke();
+        pCtx.setLineDash([]);
+        pCtx.fillStyle = '#38bdf8';
+        pCtx.textAlign = 'left';
+        pCtx.font = '10px "Inter", sans-serif';
+        pCtx.fillText('2025–2026 样本外大考区', xOos + 6, pad.top + 13);
+      }
+    }
+
+    // X-axis date ticks
+    const tickCount = Math.min(8, series.length);
+    pCtx.fillStyle = '#94a3b8';
+    pCtx.font = '11px "JetBrains Mono", monospace';
+    pCtx.textAlign = 'center';
+    for (let i = 0; i < tickCount; i++) {
+      const idx = Math.round((i / Math.max(1, tickCount - 1)) * (series.length - 1));
+      const x = xOfIndex(idx);
+      const label = series[idx].date.slice(0, 7);
+      pCtx.fillText(label, x, pHeight - 7);
+    }
+
+    // --- 2. Draw WTI Price Area & Line ---
+    const grad = pCtx.createLinearGradient(0, pad.top, 0, pad.top + pPlotH);
+    grad.addColorStop(0, 'rgba(56, 189, 248, 0.22)');
+    grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+    pCtx.beginPath();
+    series.forEach((d, i) => {
+      const x = xOfIndex(i);
+      const y = yOfPrice(d.price);
+      if (i === 0) pCtx.moveTo(x, y);
+      else pCtx.lineTo(x, y);
+    });
+    pCtx.lineTo(xOfIndex(series.length - 1), pad.top + pPlotH);
+    pCtx.lineTo(xOfIndex(0), pad.top + pPlotH);
+    pCtx.closePath();
+    pCtx.fillStyle = grad;
+    pCtx.fill();
+
+    // Main Price Line
+    pCtx.beginPath();
+    series.forEach((d, i) => {
+      const x = xOfIndex(i);
+      const y = yOfPrice(d.price);
+      if (i === 0) pCtx.moveTo(x, y);
+      else pCtx.lineTo(x, y);
+    });
+    pCtx.strokeStyle = '#e2e8f0';
+    pCtx.lineWidth = 1.8;
+    pCtx.stroke();
+
+    // Optional 5MA Line
+    if (state.showMA5) {
+      pCtx.beginPath();
+      series.forEach((d, i) => {
+        const x = xOfIndex(i);
+        const y = yOfPrice(d.ma5);
+        if (i === 0) pCtx.moveTo(x, y);
+        else pCtx.lineTo(x, y);
+      });
+      pCtx.strokeStyle = 'rgba(168, 85, 247, 0.75)';
+      pCtx.lineWidth = 1.2;
+      pCtx.setLineDash([3, 3]);
+      pCtx.stroke();
+      pCtx.setLineDash([]);
+    }
+
+    // --- 3. Draw Entry-to-Exit Connector for Active Selected Signal ---
+    const activeSig = signals.find(s => s.id === state.selectedSignalId);
+    if (state.showTradePath && activeSig) {
+      const enIdx = findNearestIdx(activeSig.date);
+      const exIdx = findNearestIdx(activeSig.exitDate);
+      const x1 = xOfIndex(enIdx), y1 = yOfPrice(activeSig.entryPrice);
+      const x2 = xOfIndex(exIdx), y2 = yOfPrice(activeSig.exitPrice);
+
+      pCtx.save();
+      pCtx.strokeStyle = activeSig.pnl >= 0 ? '#34d399' : '#fbbf24';
+      pCtx.lineWidth = 2.2;
+      pCtx.setLineDash([5, 3]);
+      pCtx.beginPath();
+      pCtx.moveTo(x1, y1);
+      pCtx.lineTo(x2, y2);
+      pCtx.stroke();
+      pCtx.setLineDash([]);
+
+      // Exit circle marker
+      pCtx.beginPath();
+      pCtx.arc(x2, y2, 4.5, 0, Math.PI * 2);
+      pCtx.fillStyle = activeSig.pnl >= 0 ? '#10b981' : '#f59e0b';
+      pCtx.fill();
+      pCtx.strokeStyle = '#0f172a';
+      pCtx.lineWidth = 1.5;
+      pCtx.stroke();
+      pCtx.restore();
+    }
+
+    // --- 4. Draw Signal Markers ---
+    renderedSignalCoords = [];
+    signals.forEach(sig => {
+      const idx = findNearestIdx(sig.date);
+      const x = xOfIndex(idx);
+      const y = yOfPrice(sig.entryPrice);
+      const isSelected = sig.id === state.selectedSignalId;
+      const isHovered = sig.id === state.hoveredSignalId;
+      const radius = isSelected ? 8.5 : (isHovered ? 7.5 : 6.0);
+
+      renderedSignalCoords.push({ id: sig.id, x, y, sig });
+
+      pCtx.save();
+      if (isSelected) {
+        pCtx.beginPath();
+        pCtx.arc(x, y, radius + 5, 0, Math.PI * 2);
+        pCtx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        pCtx.fill();
+        pCtx.strokeStyle = '#ffffff';
+        pCtx.lineWidth = 1.5;
+        pCtx.stroke();
+      }
+
+      if (sig.type === 'Q3') {
+        // Red downward triangle ▼
+        pCtx.fillStyle = '#fb7185';
+        pCtx.strokeStyle = '#0f172a';
+        pCtx.lineWidth = 1.2;
+        pCtx.beginPath();
+        pCtx.moveTo(x, y + radius);
+        pCtx.lineTo(x - radius * 0.9, y - radius * 0.75);
+        pCtx.lineTo(x + radius * 0.9, y - radius * 0.75);
+        pCtx.closePath();
+        pCtx.fill();
+        pCtx.stroke();
+      } else if (sig.type === 'Q1') {
+        // Emerald upward triangle ▲
+        pCtx.fillStyle = '#34d399';
+        pCtx.strokeStyle = '#0f172a';
+        pCtx.lineWidth = 1.2;
+        pCtx.beginPath();
+        pCtx.moveTo(x, y - radius);
+        pCtx.lineTo(x - radius * 0.9, y + radius * 0.75);
+        pCtx.lineTo(x + radius * 0.9, y + radius * 0.75);
+        pCtx.closePath();
+        pCtx.fill();
+        pCtx.stroke();
+      } else if (sig.type === 'Q2') {
+        // Sky blue diamond ◆
+        pCtx.fillStyle = '#38bdf8';
+        pCtx.strokeStyle = '#0f172a';
+        pCtx.lineWidth = 1.2;
+        pCtx.beginPath();
+        pCtx.moveTo(x, y - radius);
+        pCtx.lineTo(x + radius * 0.85, y);
+        pCtx.lineTo(x, y + radius);
+        pCtx.lineTo(x - radius * 0.85, y);
+        pCtx.closePath();
+        pCtx.fill();
+        pCtx.stroke();
+      } else if (sig.type === 'WHIPSAW') {
+        // Orange X ✖
+        const r = radius * 0.75;
+        pCtx.strokeStyle = '#fbbf24';
+        pCtx.lineWidth = 2.4;
+        pCtx.beginPath();
+        pCtx.moveTo(x - r, y - r);
+        pCtx.lineTo(x + r, y + r);
+        pCtx.moveTo(x + r, y - r);
+        pCtx.lineTo(x - r, y + r);
+        pCtx.stroke();
+      }
+      pCtx.restore();
+    });
+
+    // --- 5. Draw Synchronized Secondary Panel (ATM IV & Dispersion) ---
+    ivCtx.clearRect(0, 0, width, ivHeight);
+    let minIv = 10, maxIv = 0;
+    series.forEach(d => {
+      if (d.iv > maxIv) maxIv = d.iv;
+    });
+    maxIv = Math.ceil(Math.max(50, maxIv + 6));
+    const yOfIv = (v) => 14 + (1 - (v - minIv) / Math.max(1, maxIv - minIv)) * ivPlotH;
+
+    ivCtx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+    ivCtx.lineWidth = 1;
+    ivCtx.font = '10px "JetBrains Mono", monospace';
+    ivCtx.fillStyle = '#94a3b8';
+
+    const ivSteps = 3;
+    for (let i = 0; i <= ivSteps; i++) {
+      const val = minIv + ((maxIv - minIv) / ivSteps) * (ivSteps - i);
+      const y = 14 + (ivPlotH / ivSteps) * i;
+      ivCtx.beginPath();
+      ivCtx.moveTo(pad.left, y);
+      ivCtx.lineTo(width - pad.right, y);
+      ivCtx.stroke();
+      ivCtx.textAlign = 'right';
+      ivCtx.fillText(val.toFixed(0) + '%', pad.left - 8, y + 3);
+    }
+
+    // IV Gradient Area
+    const ivGrad = ivCtx.createLinearGradient(0, 14, 0, 14 + ivPlotH);
+    ivGrad.addColorStop(0, 'rgba(244, 63, 94, 0.28)');
+    ivGrad.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+
+    ivCtx.beginPath();
+    series.forEach((d, i) => {
+      const x = xOfIndex(i);
+      const y = yOfIv(d.iv);
+      if (i === 0) ivCtx.moveTo(x, y);
+      else ivCtx.lineTo(x, y);
+    });
+    ivCtx.lineTo(xOfIndex(series.length - 1), 14 + ivPlotH);
+    ivCtx.lineTo(xOfIndex(0), 14 + ivPlotH);
+    ivCtx.closePath();
+    ivCtx.fillStyle = ivGrad;
+    ivCtx.fill();
+
+    // ATM IV Line
+    ivCtx.beginPath();
+    series.forEach((d, i) => {
+      const x = xOfIndex(i);
+      const y = yOfIv(d.iv);
+      if (i === 0) ivCtx.moveTo(x, y);
+      else ivCtx.lineTo(x, y);
+    });
+    ivCtx.strokeStyle = '#fb7185';
+    ivCtx.lineWidth = 1.5;
+    ivCtx.stroke();
+
+    // IV Dispersion (iv_std_60 scaled) Line
+    ivCtx.beginPath();
+    series.forEach((d, i) => {
+      const x = xOfIndex(i);
+      const y = yOfIv(minIv + d.ivStd * 3.2);
+      if (i === 0) ivCtx.moveTo(x, y);
+      else ivCtx.lineTo(x, y);
+    });
+    ivCtx.strokeStyle = '#fbbf24';
+    ivCtx.lineWidth = 1.2;
+    ivCtx.stroke();
+
+    // --- 6. Draw Synchronized Hover Crosshair on Both Canvases ---
+    if (state.hoverIndex !== null && series[state.hoverIndex]) {
+      const hx = xOfIndex(state.hoverIndex);
+      [ [pCtx, pad.top, pPlotH], [ivCtx, 14, ivPlotH] ].forEach(([ctx, topY, h]) => {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(226, 232, 240, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hx, topY);
+        ctx.lineTo(hx, topY + h);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+  }
+
+  // Render Interactive Signal Ledger Table
+  function renderLedgerTable() {
+    const tbody = document.getElementById('signalLedgerBody');
+    const countSpan = document.getElementById('ledgerMatchCount');
+    if (!tbody) return;
+
+    const q = state.searchQuery.trim().toLowerCase();
+    const filtered = getFilteredSignals().filter(s => {
+      if (!q) return true;
+      return (
+        s.id.toLowerCase().includes(q) ||
+        s.date.toLowerCase().includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.indicator.toLowerCase().includes(q) ||
+        s.note.toLowerCase().includes(q)
+      );
+    });
+
+    if (countSpan) countSpan.textContent = `共 ${filtered.length} 笔匹配记录`;
+
+    const badgeCls = {
+      Q3: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+      Q1: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+      Q2: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+      WHIPSAW: 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    };
+    const badgeLabel = {
+      Q3: '▼ Q3做空',
+      Q1: '▲ Q1抄底',
+      Q2: '◆ Q2突破',
+      WHIPSAW: '✖ 窄止损'
+    };
+
+    tbody.innerHTML = filtered.map(s => {
+      const isSel = s.id === state.selectedSignalId;
+      const rowBg = isSel ? 'bg-blue-950/60 border-l-2 border-l-sky-400' : 'hover:bg-slate-800/60';
+      const pnlColor = s.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+      const retStr = (s.retPct >= 0 ? '+' : '') + s.retPct.toFixed(2) + '%';
+      return `<tr data-signal-row="${s.id}" class="cursor-pointer transition-colors border-b border-slate-800/80 ${rowBg}">
+        <td class="py-2.5 px-3 font-mono-num text-xs text-slate-300 whitespace-nowrap">${s.date}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap">
+          <span class="px-2 py-0.5 text-xs rounded border ${badgeCls[s.type] || ''}">${badgeLabel[s.type] || s.type}</span>
+        </td>
+        <td class="py-2.5 px-3 text-xs sm:text-sm font-medium text-slate-100">${s.name}</td>
+        <td class="py-2.5 px-3 font-mono-num text-xs text-right text-slate-300">$${s.entryPrice.toFixed(2)} → $${s.exitPrice.toFixed(2)}</td>
+        <td class="py-2.5 px-3 font-mono-num text-xs text-right font-semibold ${pnlColor}">${formatUSD(s.pnl, true)} (${retStr})</td>
+        <td class="py-2.5 px-3 font-mono-num text-xs text-right text-slate-400">+${s.mfe.toFixed(1)}% / ${s.mae.toFixed(1)}%</td>
+        <td class="py-2.5 px-3 text-xs text-slate-400 hidden md:table-cell">${s.indicator}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Export filtered signals as CSV
+  function exportCurrentCSV() {
+    const rows = getFilteredSignals();
+    const headers = ['信号ID', '入场日期', '退出日期', '样本分段', '信号类型', '信号名称', '退出方式', '开仓价($)', '平仓价($)', '单手净损益($)', '收益率(%)', 'MFE(%)', 'MAE(%)', '触发指标与分位', '微观归因说明'];
+    const csvLines = [headers.join(',')];
+    rows.forEach(s => {
+      const vals = [
+        s.id, s.date, s.exitDate, s.period, s.type,
+        `"${s.name.replace(/"/g, '""')}"`,
+        `"${s.exitType.replace(/"/g, '""')}"`,
+        s.entryPrice, s.exitPrice, s.pnl, s.retPct, s.mfe, s.mae,
+        `"${s.indicator.replace(/"/g, '""')}"`,
+        `"${s.note.replace(/"/g, '""')}"`
+      ];
+      csvLines.push(vals.join(','));
+    });
+    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wti_crude_signals_${state.period}_${state.layer}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`已导出 ${rows.length} 笔原油实证信号 CSV 文件`);
+  }
+
+  function setupInteractions() {
+    // Period filter buttons
+    document.querySelectorAll('[data-period-btn]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.period = btn.getAttribute('data-period-btn');
+        updateDashboardMetrics();
+      });
+    });
+
+    // Signal layer filter buttons
+    document.querySelectorAll('[data-layer-btn]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.layer = btn.getAttribute('data-layer-btn');
+        updateDashboardMetrics();
+      });
+    });
+
+    // Chart toggles
+    const btnToggleMA5 = document.getElementById('btnToggleMA5');
+    if (btnToggleMA5) {
+      btnToggleMA5.addEventListener('click', () => {
+        state.showMA5 = !state.showMA5;
+        btnToggleMA5.classList.toggle('bg-purple-500/25', state.showMA5);
+        btnToggleMA5.classList.toggle('border-purple-400', state.showMA5);
+        drawCharts();
+      });
+    }
+
+    const btnTogglePath = document.getElementById('btnTogglePath');
+    if (btnTogglePath) {
+      btnTogglePath.addEventListener('click', () => {
+        state.showTradePath = !state.showTradePath;
+        btnTogglePath.classList.toggle('bg-emerald-500/25', state.showTradePath);
+        btnTogglePath.classList.toggle('border-emerald-400', state.showTradePath);
+        drawCharts();
+      });
+    }
+
+    const btnResetFilters = document.getElementById('btnResetFilters');
+    if (btnResetFilters) {
+      btnResetFilters.addEventListener('click', () => {
+        state.period = 'ALL';
+        state.layer = 'ALL';
+        state.selectedSignalId = 'Q3-16';
+        state.searchQuery = '';
+        const searchInput = document.getElementById('ledgerSearchInput');
+        if (searchInput) searchInput.value = '';
+        updateDashboardMetrics();
+        showToast('已重置为全周期 (2014–2026) 全部 71 笔信号视图');
+      });
+    }
+
+    // Microscope Prev / Next buttons
+    const btnPrevSig = document.getElementById('btnPrevSig');
+    const btnNextSig = document.getElementById('btnNextSig');
+    if (btnPrevSig) {
+      btnPrevSig.addEventListener('click', () => {
+        const list = getFilteredSignals();
+        if (!list.length) return;
+        const idx = list.findIndex(s => s.id === state.selectedSignalId);
+        const prevIdx = idx > 0 ? idx - 1 : list.length - 1;
+        state.selectedSignalId = list[prevIdx].id;
+        renderMicroscope();
+        renderLedgerTable();
+        drawCharts();
+      });
+    }
+    if (btnNextSig) {
+      btnNextSig.addEventListener('click', () => {
+        const list = getFilteredSignals();
+        if (!list.length) return;
+        const idx = list.findIndex(s => s.id === state.selectedSignalId);
+        const nextIdx = (idx >= 0 && idx < list.length - 1) ? idx + 1 : 0;
+        state.selectedSignalId = list[nextIdx].id;
+        renderMicroscope();
+        renderLedgerTable();
+        drawCharts();
+      });
+    }
+
+    // Search input & CSV export
+    const searchInput = document.getElementById('ledgerSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        state.searchQuery = e.target.value || '';
+        renderLedgerTable();
+      });
+    }
+
+    const btnExportCsv = document.getElementById('btnExportCsv');
+    if (btnExportCsv) {
+      btnExportCsv.addEventListener('click', exportCurrentCSV);
+    }
+
+    // Delegated click on Ledger Table rows
+    const tbody = document.getElementById('signalLedgerBody');
+    if (tbody) {
+      tbody.addEventListener('click', (e) => {
+        const tr = e.target.closest('[data-signal-row]');
+        if (!tr) return;
+        state.selectedSignalId = tr.getAttribute('data-signal-row');
+        renderMicroscope();
+        renderLedgerTable();
+        drawCharts();
+      });
+    }
+
+    // Delegated click on 2026 Whipsaw Diagnostic Table rows
+    document.querySelectorAll('[data-jump-signal]').forEach(el => {
+      el.addEventListener('click', () => {
+        const sigId = el.getAttribute('data-jump-signal');
+        if (!sigId) return;
+        state.period = '2025-2026';
+        state.layer = 'ALL';
+        state.selectedSignalId = sigId;
+        updateDashboardMetrics();
+        const chartEl = document.getElementById('wtiPriceCanvas');
+        if (chartEl) chartEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast(`已在看板与显微镜中定位信号 ${sigId}`);
+      });
+    });
+
+    // Bottom research tabs
+    document.querySelectorAll('[data-tab-target]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-tab-target');
+        state.activeTab = target;
+        document.querySelectorAll('[data-tab-target]').forEach(b => {
+          b.classList.toggle('tab-btn-active', b.getAttribute('data-tab-target') === target);
+        });
+        document.querySelectorAll('[data-tab-panel]').forEach(panel => {
+          panel.classList.toggle('hidden', panel.getAttribute('data-tab-panel') !== target);
+        });
+      });
+    });
+
+    // Canvas hover & click interactions
+    const priceCanvas = document.getElementById('wtiPriceCanvas');
+    const tooltip = document.getElementById('chartTooltip');
+    if (priceCanvas) {
+      priceCanvas.addEventListener('mousemove', (e) => {
+        const rect = priceCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const series = getFilteredSeries();
+        if (!series.length) return;
+
+        const padLeft = 54, padRight = 20;
+        const plotW = rect.width - padLeft - padRight;
+        const relX = Math.max(0, Math.min(plotW, mx - padLeft));
+        const idx = Math.round((relX / Math.max(1, plotW)) * (series.length - 1));
+        state.hoverIndex = idx;
+
+        // Check if mouse is near a signal marker
+        let nearestSig = null;
+        let minDist = 14;
+        renderedSignalCoords.forEach(item => {
+          const dist = Math.hypot(item.x - mx, item.y - my);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestSig = item;
+          }
+        });
+
+        state.hoveredSignalId = nearestSig ? nearestSig.id : null;
+        priceCanvas.style.cursor = nearestSig ? 'pointer' : 'crosshair';
+
+        if (tooltip && series[idx]) {
+          const pt = series[idx];
+          tooltip.classList.remove('hidden');
+          if (nearestSig) {
+            const s = nearestSig.sig;
+            const retStr = (s.retPct >= 0 ? '+' : '') + s.retPct.toFixed(2) + '%';
+            tooltip.innerHTML = `<div class="font-semibold text-sky-300">${s.date} • ${s.name}</div>
+              <div class="text-slate-200 mt-0.5">开仓 <b>$${s.entryPrice.toFixed(2)}</b> → 平仓 <b>$${s.exitPrice.toFixed(2)}</b> | 净损益 <b class="${s.pnl>=0?'text-emerald-400':'text-rose-400'}">${formatUSD(s.pnl, true)} (${retStr})</b></div>
+              <div class="text-slate-400 text-[11px]">点击将此交易载入下方「交易显微镜」</div>`;
+          } else {
+            tooltip.innerHTML = `<div class="font-mono-num text-slate-300"><b>${pt.date}</b> | WTI主力: <b class="text-white">$${pt.price.toFixed(2)}</b> | 5MA: <span class="text-purple-300">$${pt.ma5.toFixed(2)}</span></div>
+              <div class="font-mono-num text-[11px] text-slate-400">30D ATM IV: <span class="text-rose-300">${pt.iv.toFixed(1)}%</span> | IV离散度(iv_std_60): <span class="text-amber-300">${pt.ivStd.toFixed(2)}</span></div>`;
+          }
+        }
+        drawCharts();
+      });
+
+      priceCanvas.addEventListener('mouseleave', () => {
+        state.hoverIndex = null;
+        state.hoveredSignalId = null;
+        if (tooltip) tooltip.classList.add('hidden');
+        drawCharts();
+      });
+
+      priceCanvas.addEventListener('click', () => {
+        if (state.hoveredSignalId) {
+          state.selectedSignalId = state.hoveredSignalId;
+          renderMicroscope();
+          renderLedgerTable();
+          drawCharts();
+          showToast(`已选中信号 ${state.selectedSignalId}，详情已同步至交易显微镜`);
+        }
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      drawCharts();
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    setupInteractions();
+    updateDashboardMetrics();
+  });
+})();
+
+  </script>
+</body>
+</html>
