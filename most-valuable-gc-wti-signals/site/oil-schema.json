@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "entryPoint": "OilEngine.buildView(history,{snapshot,oil175,research})",
+  "result": "Market rows plus strategies keyed by1.5_t50 and1.75_t65. Every strategy row/latest contains full market fields; no index join needed.",
+  "fields": {
+    "date": "Native CL trading-session label YYYY-MM-DD, never inferred weekdays.",
+    "price": "Raw front-contract close USD/barrel; may jump on rollover.",
+    "adjustedClose": "Roll-adjusted close bridged to original historical level; use for continuous price chart and T20.",
+    "priceQuality": "observed / known_gap / unverified; chart should break or explicitly mark known_gap, never interpolate it.",
+    "t20": "Causal standardized20-session trend; null unknown. Sample standard deviation ddof1.",
+    "rank150": "Own1.5-chain historical percentile in0..1, null missing.",
+    "rank175": "Own1.75-chain historical percentile in0..1, null missing.",
+    "rank": "Selected strategy rank, same units.",
+    "trigger": "true eligible today, false both inputs known but conditions fail, null at least one input missing.",
+    "execution": "true trigger from2 native sessions earlier executes today; false no execution; null source observation missing. Unknown never resets timer.",
+    "remaining": "Sessions still planned including today; execution resets20, next session19. remaining1 still holds today; next open exits absent another reset.",
+    "holding": "Whether frozen research rule currently has a valid long observation period; does not imply actual user position.",
+    "entered": "First holding session after being flat.",
+    "exited": "Natural timer expiry only; not a low-dispersion/trend stop.",
+    "renewed": "True execution while already holding; one position, no pyramiding.",
+    "eligibleHistory": "False before2021-01-01; earlier rows are historical context only."
+  },
+  "offline": "oil-bootstrap.json is saved source data with publication verification dates; successful current GET is required to call it freshly read back.",
+  "live": "Pure GET/read-only sources; browser rebuilds states on new complete-session rows. Do not reuse the source unfiltered timers for either selected strategy.",
+  "latest": "Final known row is an open-ended state; never force a liquidation there."
+}

@@ -24,3 +24,4 @@
 ## 相关看板
 
 - [黄金与原油瘦身双核策略](gold_oil_slimmed_signals/index.html)
+- [最有价值 GC / WTI 信号](most-valuable-gc-wti-signals/index.html)
